@@ -1,13 +1,22 @@
 """
-Wilson v0.0.1 Smoke Test
+Wilson v0.0.2 - Integration Test
 
-Takes one known-fabricated citation from the Charlotin database,
-extracts it with eyecite, and checks it against:
-1. CourtListener API (v4 citation-lookup)
-2. Local citations CSV (offline verification)
+Demonstrates the complete Phase 1 + Phase 2 pipeline:
 
-Expected result: NOT FOUND on both — confirming Wilson's
-core pipeline functions end to end.
+Phase 1: Citation existence verification
+  - Extract citation with eyecite
+  - Verify against CourtListener API (v4)
+  - Verify against local citations CSV (18M records)
+
+Phase 2: Quote verification
+  - Fetch full opinion text from CourtListener
+  - Check whether quoted language appears in the opinion
+  - Return confidence score and closest matching passage
+
+Test cases:
+  A) Known fabricated citation (Mata v. Avianca) — should fail existence check
+  B) Real citation with real quote (Strickland) — should pass existence and quote check
+  C) Real citation with fabricated quote (Strickland) — should pass existence, fail quote check
 """
 
 import os
@@ -15,75 +24,136 @@ import pandas as pd
 from dotenv import load_dotenv
 import requests
 from eyecite import get_citations
+from quote_verify import verify_quote
 
 load_dotenv()
 CL_TOKEN = os.getenv("COURTLISTENER_TOKEN")
 CL_HEADERS = {"Authorization": f"Token {CL_TOKEN}"}
+CITATIONS_CSV = "/mnt/wilson-data/courtlistener/citations-2026-03-31.csv"
 
-# Known fabricated citation from Mata v. Avianca (Charlotin database)
-# This case does not exist — confirmed NOT FOUND via API test
-test_text = "Varghese v. China Southern Airlines Co., Ltd., 925 F.3d 1339 (11th Cir. 2019)"
 
-print("=" * 60)
-print("WILSON v0.0.1 SMOKE TEST")
-print("=" * 60)
+def lookup_citation(text):
+    """
+    Look up a citation via CourtListener API v4.
+    Returns (found: bool, cluster_id: int or None, message: str)
+    """
+    url = "https://www.courtlistener.com/api/rest/v4/citation-lookup/"
+    resp = requests.post(url, json={"text": text}, headers=CL_HEADERS)
+    results = resp.json()
 
-# Step 1: Extract citation with eyecite
-print("\n[STEP 1] Extracting citation with eyecite...")
-citations = get_citations(test_text)
-print(f"  Found {len(citations)} citation(s)")
+    if not results:
+        return False, None, "No results returned"
 
-if not citations:
-    print("  ERROR: eyecite found no citations. Pipeline broken.")
-    exit(1)
+    first = results[0]
 
-c = citations[0]
-print(f"  Citation: {c}")
+    if first.get("status") == 404:
+        return False, None, first.get("error_message", "Citation not found")
 
-# Step 2: Check against CourtListener API
-print("\n[STEP 2] Checking CourtListener API (v4)...")
-lookup_url = "https://www.courtlistener.com/api/rest/v4/citation-lookup/"
-resp = requests.post(lookup_url, json={"text": test_text}, headers=CL_HEADERS)
-results = resp.json()
+    clusters = first.get("clusters", [])
+    if not clusters:
+        return False, None, "Citation found but no cluster data returned"
 
-if results and results[0].get('status') == 404:
-    print(f"  STATUS: NOT FOUND (expected)")
-    print(f"  Message: {results[0].get('error_message')}")
-elif results and results[0].get('clusters'):
-    print(f"  STATUS: FOUND — unexpected, investigation needed")
-else:
-    print(f"  STATUS: UNEXPECTED RESPONSE — {results}")
+    cluster_id = clusters[0]["id"]
+    
+    return True, cluster_id, f"Found — cluster ID {cluster_id}"
 
-# Step 3: Check against local citations CSV
-print("\n[STEP 3] Checking local citations CSV...")
-citations_path = "/mnt/wilson-data/courtlistener/citations-2026-03-31.csv"
 
-try:
-    # Extract volume, reporter, page from eyecite result
+def check_local_csv(citations):
+    """
+    Check extracted eyecite citations against local bulk CSV.
+    Returns (found: bool, message: str)
+    """
+    if not citations:
+        return False, "No citations extracted"
+
+    c = citations[0]
     groups = c.groups
-    vol = groups.get('volume')
-    reporter = groups.get('reporter')
-    page = groups.get('page')
-    
-    print(f"  Looking for: {vol} {reporter} {page}")
-    
-    df = pd.read_csv(citations_path, dtype=str)
-    match = df[
-        (df['volume'] == vol) &
-        (df['reporter'] == reporter) &
-        (df['page'] == page)
-    ]
-    
-    if len(match) == 0:
-        print(f"  STATUS: NOT FOUND in local CSV (expected)")
+    vol = groups.get("volume")
+    reporter = groups.get("reporter")
+    page = groups.get("page")
+
+    try:
+        df = pd.read_csv(CITATIONS_CSV, dtype=str)
+        match = df[
+            (df["volume"] == vol) &
+            (df["reporter"] == reporter) &
+            (df["page"] == page)
+        ]
+        if len(match) > 0:
+            return True, f"Found in local CSV ({len(match)} match(es))"
+        else:
+            return False, "Not found in local CSV"
+    except Exception as e:
+        return False, f"CSV error: {e}"
+
+
+def run_test(label, citation_text, quoted_text=None):
+    """
+    Run the full Wilson pipeline on a citation and optional quote.
+    """
+    print(f"\n{'=' * 60}")
+    print(f"TEST: {label}")
+    print(f"{'=' * 60}")
+
+    # Step 1: Extract with eyecite
+    print(f"\n[STEP 1] Extracting citation...")
+    citations = get_citations(citation_text)
+    if citations:
+        print(f"  FOUND: {citations[0]}")
     else:
-        print(f"  STATUS: FOUND — {len(match)} match(es)")
-        print(match)
+        print(f"  ERROR: eyecite found no citations")
+        return
 
-except Exception as e:
-    print(f"  ERROR: {e}")
+    # Step 2: API lookup
+    print(f"\n[STEP 2] CourtListener API lookup...")
+    found, cluster_id, message = lookup_citation(citation_text)
+    print(f"  {'FOUND' if found else 'NOT FOUND'}: {message}")
 
-print("\n" + "=" * 60)
-print("SMOKE TEST COMPLETE")
-print("If both steps show NOT FOUND — Wilson v0.0.1 pipeline works.")
-print("=" * 60)
+    # Step 3: Local CSV
+    print(f"\n[STEP 3] Local CSV verification...")
+    csv_found, csv_message = check_local_csv(citations)
+    print(f"  {'FOUND' if csv_found else 'NOT FOUND'}: {csv_message}")
+
+    # Step 4: Quote verification (only if citation exists and quote provided)
+    if quoted_text:
+        print(f"\n[STEP 4] Quote verification...")
+        if not found or not cluster_id:
+            print(f"  SKIPPED: Citation does not exist — quote verification not applicable")
+        else:
+            result = verify_quote(quoted_text, cluster_id)
+            print(f"  Result: {result['result']}")
+            print(f"  Score:  {round(result['score'], 1)}")
+            print(f"  Reasoning: {result['reasoning']}")
+            if result['passage']:
+                print(f"  Passage: {result['passage'][:200]}")
+
+
+if __name__ == "__main__":
+    print("=" * 60)
+    print("WILSON v0.0.2 — FULL PIPELINE TEST")
+    print("=" * 60)
+
+    # Test A: Known fabricated citation — should fail at existence
+    run_test(
+        label="A — Fabricated citation (Mata v. Avianca)",
+        citation_text="Varghese v. China Southern Airlines Co., Ltd., 925 F.3d 1339 (11th Cir. 2019)",
+        quoted_text="An airline's duty of care extends to all foreseeable risks of international travel"
+    )
+
+    # Test B: Real citation, real quote — should pass both
+    run_test(
+        label="B — Real citation, real quote (Strickland)",
+        citation_text="Strickland v. Washington, 466 U.S. 668, 688 (1984)",
+        quoted_text="The proper measure of attorney performance is reasonableness under prevailing professional norms"
+    )
+
+    # Test C: Real citation, fabricated quote — should pass existence, fail quote
+    run_test(
+        label="C — Real citation, fabricated quote (Strickland)",
+        citation_text="Strickland v. Washington, 466 U.S. 668, 688 (1984)",
+        quoted_text="Defense counsel must achieve perfect performance under all circumstances regardless of resources"
+    )
+
+    print(f"\n{'=' * 60}")
+    print("PIPELINE TEST COMPLETE")
+    print("=" * 60)
