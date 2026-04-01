@@ -129,7 +129,7 @@ Open an issue before submitting a pull request so we can discuss approach.
 
 Named for the volleyball in *Cast Away* — something real built under duress because survival required it. A thinking partner that keeps you sane when the system breaks down around you.
 
-Wilson is developed by [National Standard Consulting LLC](https://nationalstandardconsulting.com), an SDVOSB founded by a US Navy veteran and former GS-13 Training and Exercise Program Specialist at USNORTHCOM.
+Wilson is developed by [National Standard Consulting LLC](https://nationalstandardconsulting.com).
 
 ---
 
