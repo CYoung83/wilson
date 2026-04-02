@@ -2,7 +2,7 @@
 Wilson - Coherence Checking Module
 
 Given a legal proposition, a cited case, and the full opinion text,
-asks the local Nemotron model whether the case actually supports
+asks a local LLM via Ollama whether the case actually supports
 the proposition it is cited for.
 
 This is Phase 3 of Wilson's pipeline:
@@ -10,7 +10,11 @@ This is Phase 3 of Wilson's pipeline:
   Phase 2: Does the quoted text appear in the opinion? (quote_verify.py)
   Phase 3: Does the case actually support the proposition? (this file)
 
-Uses local Ollama inference — no data leaves the machine.
+Phase 3 requires a local Ollama instance. Configure OLLAMA_HOST and
+OLLAMA_MODEL in your .env file. If not configured, Wilson reports
+Phase 3 as skipped and completes Phases 1 and 2 only.
+
+Uses local inference — no case data leaves the machine.
 """
 
 import os
@@ -25,8 +29,8 @@ load_dotenv()
 CL_TOKEN = os.getenv("COURTLISTENER_TOKEN")
 CL_HEADERS = {"Authorization": f"Token {CL_TOKEN}"}
 
-OLLAMA_HOST = "http://10.27.27.5:11434"
-OLLAMA_MODEL = "nemotron-cascade-2:30b"
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
 
 SYSTEM_PROMPT = """You are a legal citation auditor. You ALWAYS respond with only a valid JSON object and nothing else. Never respond with prose, explanation, or thinking before or after the JSON. Your entire response must be a single parseable JSON object in this exact format:
 
@@ -34,6 +38,29 @@ SYSTEM_PROMPT = """You are a legal citation auditor. You ALWAYS respond with onl
 
 Valid values for verdict: SUPPORTS, DOES_NOT_SUPPORT, UNCERTAIN
 Valid values for confidence: HIGH, MEDIUM, LOW"""
+
+
+def coherence_available():
+    """
+    Check whether a local LLM is configured and reachable.
+    Returns (available: bool, message: str)
+    """
+    if not OLLAMA_HOST:
+        return False, "OLLAMA_HOST not configured in .env"
+    try:
+        resp = requests.get(f"{OLLAMA_HOST}/api/tags", timeout=3)
+        if resp.status_code == 200:
+            models = resp.json().get("models", [])
+            model_names = [m["name"] for m in models]
+            if any(OLLAMA_MODEL in name for name in model_names):
+                return True, f"Ollama reachable at {OLLAMA_HOST} — model {OLLAMA_MODEL} loaded"
+            else:
+                return False, f"Ollama reachable but model '{OLLAMA_MODEL}' not found. Available: {model_names}"
+        return False, f"Ollama returned status {resp.status_code}"
+    except requests.exceptions.ConnectionError:
+        return False, f"Cannot reach Ollama at {OLLAMA_HOST} — is it running?"
+    except Exception as e:
+        return False, f"Ollama check failed: {e}"
 
 
 def fetch_opinion_text(cluster_id):
@@ -131,7 +158,7 @@ def extract_verdict_from_prose(prose):
 
 def check_coherence(proposition, case_name, cluster_id, opinion_text=None):
     """
-    Ask Nemotron whether a cited case supports a legal proposition.
+    Ask the local LLM whether a cited case supports a legal proposition.
 
     Args:
         proposition: The legal argument the case is cited for
@@ -141,11 +168,21 @@ def check_coherence(proposition, case_name, cluster_id, opinion_text=None):
 
     Returns:
         dict with keys:
-            verdict: SUPPORTS | DOES_NOT_SUPPORT | UNCERTAIN | ERROR
-            confidence: HIGH | MEDIUM | LOW
-            reasoning: Nemotron's explanation
-            thinking: Nemotron's chain of thought (if available)
+            verdict: SUPPORTS | DOES_NOT_SUPPORT | UNCERTAIN | SKIPPED | ERROR
+            confidence: HIGH | MEDIUM | LOW | None
+            reasoning: Explanation
+            thinking: LLM chain of thought if available
     """
+    # Check LLM availability first
+    available, availability_message = coherence_available()
+    if not available:
+        return {
+            "verdict": "SKIPPED",
+            "confidence": None,
+            "reasoning": f"Phase 3 skipped — {availability_message}. Configure OLLAMA_HOST and OLLAMA_MODEL in .env to enable coherence checking.",
+            "thinking": None
+        }
+
     if opinion_text is None:
         print(f"  [COHERENCE] Fetching opinion for cluster {cluster_id}...")
         opinion_text = fetch_opinion_text(cluster_id)
@@ -202,7 +239,9 @@ JSON RESPONSE:"""
         thinking_match = re.search(r'<think>(.*?)</think>', raw_response, re.DOTALL)
         if thinking_match:
             thinking = thinking_match.group(1).strip()
-            raw_response = re.sub(r'<think>.*?</think>', '', raw_response, flags=re.DOTALL).strip()
+            raw_response = re.sub(
+                r'<think>.*?</think>', '', raw_response, flags=re.DOTALL
+            ).strip()
 
         # Try markdown code block first, then bare JSON
         json_str = None
@@ -228,12 +267,11 @@ JSON RESPONSE:"""
         fallback_verdict = extract_verdict_from_prose(raw_response)
 
         if fallback_verdict:
-            # Extract a clean reasoning snippet from the prose
             reasoning_snippet = raw_response.strip()[:400]
             return {
                 "verdict": fallback_verdict,
                 "confidence": "LOW",
-                "reasoning": f"[Extracted from prose — low confidence] {reasoning_snippet}",
+                "reasoning": f"[Extracted from prose] {reasoning_snippet}",
                 "thinking": thinking
             }
 
@@ -264,6 +302,16 @@ if __name__ == "__main__":
     print("=" * 60)
     print("WILSON — COHERENCE CHECK TEST")
     print("=" * 60)
+
+    # Check LLM availability before running tests
+    available, message = coherence_available()
+    print(f"\nLLM Status: {message}")
+
+    if not available:
+        print("\nPhase 3 coherence checking requires a local Ollama instance.")
+        print("Set OLLAMA_HOST and OLLAMA_MODEL in your .env file.")
+        print("Install Ollama at https://ollama.com")
+        exit(0)
 
     # Test 1: Correct use of Strickland
     print("\n[TEST 1] Correct proposition — Strickland")
@@ -301,8 +349,9 @@ if __name__ == "__main__":
     if result2['thinking']:
         print(f"  Thinking:   {result2['thinking'][:300]}...")
 
-    # Test 3: Subtle misrepresentation — case exists, proposition is adjacent but wrong
     print("\n" + "-" * 60)
+
+    # Test 3: Subtle misrepresentation
     print("\n[TEST 3] Subtle misrepresentation — Strickland")
     print("Proposition: A defendant is entitled to a new trial whenever")
     print("counsel makes any error during proceedings.")
