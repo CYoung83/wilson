@@ -11,6 +11,9 @@ Returns a structured result Wilson can include in its reasoning trace.
 import os
 import re
 import requests
+from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
+import warnings
+warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 from bs4 import BeautifulSoup
 from rapidfuzz import fuzz
 from dotenv import load_dotenv
@@ -42,7 +45,7 @@ def fetch_opinion_text(cluster_id):
     for opinion in results:
         html = opinion.get("html_with_citations", "")
         if html:
-            soup = BeautifulSoup(html, "html.parser")
+            soup = BeautifulSoup(html, "lxml")
             full_text += soup.get_text(separator=" ") + "\n"
     
     return full_text.strip() if full_text else None

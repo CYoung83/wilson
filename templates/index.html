@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wilson -- AI Citation Auditor</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 960px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 1.25rem;
+            border-bottom: 1px solid #1a1a1a;
+            padding-bottom: 1rem;
+            display: flex;
+            align-items: baseline;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+        }
+
+        header h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.5px;
+        }
+
+        .tagline {
+            color: #444;
+            font-style: italic;
+            font-size: 0.82rem;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.25rem;
+            flex-wrap: wrap;
+        }
+
+        .status-pill {
+            font-size: 0.7rem;
+            padding: 0.18rem 0.6rem;
+            border-radius: 999px;
+            border: 1px solid;
+            white-space: nowrap;
+        }
+
+        .status-pill.ok  { border-color: #1a4a1a; background: #0d2a0d; color: #4caf50; }
+        .status-pill.warn{ border-color: #4a3a1a; background: #2a1f0d; color: #ff9800; }
+        .status-pill.off { border-color: #2a2a2a; background: #111;    color: #444;    }
+
+        /* ---- Form ---- */
+        .form-panel {
+            background: #111;
+            border: 1px solid #1e1e1e;
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .form-panel h2 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #3a3a3a;
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 0.3rem;
+            margin-top: 0.85rem;
+        }
+
+        label:first-of-type { margin-top: 0; }
+
+        .opt { color: #2e2e2e; font-size: 0.7rem; margin-left: 0.4rem; }
+
+        input[type="text"], textarea {
+            width: 100%;
+            background: #0a0a0a;
+            border: 1px solid #252525;
+            border-radius: 4px;
+            color: #ddd;
+            padding: 0.55rem 0.7rem;
+            font-size: 0.86rem;
+            font-family: inherit;
+            transition: border-color 0.15s;
+            resize: vertical;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #333;
+        }
+
+        textarea { min-height: 68px; }
+
+        .btn-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        button {
+            flex: 1;
+            padding: 0.65rem;
+            background: #161616;
+            border: 1px solid #252525;
+            border-radius: 5px;
+            color: #ccc;
+            font-size: 0.86rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        button:hover  { background: #1e1e1e; border-color: #333; }
+        button:active { background: #0f0f0f; }
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .reset-btn {
+            flex: 0 0 auto;
+            padding: 0.65rem 1rem;
+            color: #444;
+            font-size: 0.8rem;
+        }
+
+        /* ---- Progress ---- */
+        .progress-section {
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .progress-track {
+            height: 6px;
+            background: #161616;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+            border: 1px solid #1e1e1e;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: linear-gradient(90deg, #1a4a1a, #2d7a2d, #1a4a1a);
+            background-size: 200% 100%;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        .progress-fill.active {
+            animation: shimmer 1.4s infinite linear;
+        }
+
+        @keyframes shimmer {
+            0%   { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .progress-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .progress-log {
+            font-size: 0.74rem;
+            color: #3a3a3a;
+            font-family: monospace;
+            line-height: 1.7;
+        }
+
+        .progress-log .log-active { color: #666; }
+        .progress-log .log-done   { color: #2a2a2a; }
+
+        .timer-display {
+            font-size: 0.72rem;
+            color: #2a2a2a;
+            font-family: monospace;
+            white-space: nowrap;
+        }
+
+        /* ---- Results ---- */
+        .parsed-bar {
+            background: #0a0a0a;
+            border: 1px solid #1a1a1a;
+            border-radius: 4px;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.75rem;
+            font-family: monospace;
+            font-size: 0.74rem;
+            color: #3a3a3a;
+            animation: fadeUp 0.2s ease;
+        }
+
+        .fallback-note {
+            color: #8a6a00;
+            font-size: 0.7rem;
+            margin-top: 0.25rem;
+        }
+
+        .phase-block {
+            background: #111;
+            border: 1px solid #1e1e1e;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            animation: fadeUp 0.25s ease;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .phase-header {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-bottom: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .phase-label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #3a3a3a;
+        }
+
+        .verdict {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 0.16rem 0.5rem;
+            border-radius: 3px;
+            letter-spacing: 0.4px;
+        }
+
+        .v-green  { background: #0d2a0d; color: #4caf50; border: 1px solid #1a4a1a; }
+        .v-red    { background: #2a0d0d; color: #f44336; border: 1px solid #4a1a1a; }
+        .v-orange { background: #2a1f0d; color: #ff9800; border: 1px solid #4a3a1a; }
+        .v-grey   { background: #161616; color: #555;    border: 1px solid #222;    }
+
+        .confidence-tag {
+            font-size: 0.68rem;
+            color: #3a3a3a;
+            margin-left: auto;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 110px 1fr;
+            gap: 0.22rem 0.5rem;
+            font-size: 0.76rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .dk { color: #3a3a3a; }
+        .dv { color: #888; word-break: break-word; }
+        .dv.mono { font-family: monospace; font-size: 0.72rem; }
+
+        .reasoning {
+            padding: 0.6rem 0.7rem;
+            background: #0a0a0a;
+            border-radius: 4px;
+            font-size: 0.76rem;
+            color: #666;
+            line-height: 1.55;
+            border-left: 2px solid #1e1e1e;
+        }
+
+        .passage {
+            margin-top: 0.4rem;
+            padding: 0.55rem 0.7rem;
+            background: #0a0a0a;
+            border-radius: 4px;
+            font-size: 0.71rem;
+            color: #444;
+            font-family: monospace;
+            line-height: 1.5;
+            border-left: 2px solid #1a3a1a;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .error-block {
+            background: #160808;
+            border: 1px solid #3a1515;
+            border-radius: 6px;
+            padding: 0.85rem;
+            color: #cc3333;
+            font-size: 0.8rem;
+            line-height: 1.55;
+            animation: fadeUp 0.2s ease;
+        }
+
+        footer {
+            margin-top: 2.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #141414;
+            font-size: 0.68rem;
+            color: #252525;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        footer a { color: #2e2e2e; text-decoration: none; }
+        footer a:hover { color: #555; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <header>
+        <h1>Wilson</h1>
+        <span class="tagline">Wilson removes the advantage afforded to those who will lie.</span>
+    </header>
+
+    <div class="status-bar">
+        <span class="status-pill ok">Phase 1 -- Citation Existence</span>
+        <span class="status-pill ok">Phase 2 -- Quote Verification</span>
+        {% if llm_available %}
+            <span class="status-pill ok">Phase 3 -- Coherence Checking</span>
+        {% else %}
+            <span class="status-pill off" title="{{ llm_message }}">Phase 3 -- Offline</span>
+        {% endif %}
+        {% if csv_available %}
+            <span class="status-pill ok">Offline CSV -- 18M Records</span>
+        {% else %}
+            <span class="status-pill warn">Offline CSV -- Not Configured</span>
+        {% endif %}
+    </div>
+
+    <!-- Form -->
+    <div class="form-panel">
+        <h2>Verify Citation</h2>
+
+        <label for="citation">Citation</label>
+        <input
+            type="text"
+            id="citation"
+            placeholder="Strickland v. Washington, 466 U.S. 668 (1984)"
+            autocomplete="off"
+        />
+
+        <label for="quoted_text">
+            Quoted Text
+            <span class="opt">optional -- enables Phase 2</span>
+        </label>
+        <textarea
+            id="quoted_text"
+            placeholder="The proper measure of attorney performance is reasonableness under prevailing professional norms"
+        ></textarea>
+
+        <label for="proposition">
+            Legal Proposition
+            <span class="opt">optional -- enables Phase 3</span>
+        </label>
+        <textarea
+            id="proposition"
+            placeholder="To prevail on an ineffective assistance claim, a defendant must show deficient performance and prejudice"
+        ></textarea>
+
+        <div class="btn-row">
+            <button id="run-btn" onclick="runWilson()">Run Wilson</button>
+            <button class="reset-btn" onclick="resetForm()">Reset</button>
+        </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-section" id="progress-section">
+        <div class="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="progress-meta">
+            <div class="progress-log" id="progress-log"></div>
+            <div class="timer-display" id="timer">0.0s</div>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div id="results"></div>
+
+    <footer>
+        <span>Wilson v0.0.5 -- <a href="https://github.com/CYoung83/wilson" target="_blank">github.com/CYoung83/wilson</a></span>
+        <span><a href="/docs" target="_blank">API Docs</a> &middot; <a href="/health" target="_blank">Health</a></span>
+    </footer>
+
+</div>
+<script>
+    let timerInterval = null;
+    let startTime = null;
+
+    function startTimer() {
+        startTime = Date.now();
+        document.getElementById('timer').textContent = '0.0s';
+        timerInterval = setInterval(() => {
+            const s = ((Date.now() - startTime) / 1000).toFixed(1);
+            document.getElementById('timer').textContent = s + 's';
+        }, 100);
+    }
+
+    function stopTimer(finalDuration) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        if (finalDuration != null) {
+            document.getElementById('timer').textContent = finalDuration + 's';
+        }
+    }
+
+    function setProgress(pct, active) {
+        const fill = document.getElementById('progress-fill');
+        fill.style.width = pct + '%';
+        if (active) {
+            fill.classList.add('active');
+        } else {
+            fill.classList.remove('active');
+        }
+    }
+
+    function addLog(msg, state) {
+        const log = document.getElementById('progress-log');
+        log.querySelectorAll('.log-active').forEach(el => {
+            el.className = 'log-done';
+        });
+        const span = document.createElement('span');
+        span.className = state === 'done' ? 'log-done' : 'log-active';
+        span.textContent = (log.children.length ? ' > ' : '> ') + msg;
+        log.appendChild(span);
+    }
+
+    function verdictClass(v) {
+        if (!v) return 'v-grey';
+        if (['EXISTS','SUPPORTS'].includes(v) || v.includes('MATCH')) return 'v-green';
+        if (['FABRICATED','DOES_NOT_SUPPORT','NOT_FOUND'].includes(v)) return 'v-red';
+        if (['MISATTRIBUTED','UNCERTAIN'].includes(v)) return 'v-orange';
+        return 'v-grey';
+    }
+
+    function detail(k, v, mono) {
+        return `<div class="dk">${k}</div><div class="dv${mono?' mono':''}">${v}</div>`;
+    }
+
+    function renderPhase1(d) {
+        const vc = verdictClass(d.verdict);
+        let h = `<div class="phase-block">
+            <div class="phase-header">
+                <span class="phase-label">Phase 1 -- Existence</span>
+                <span class="verdict ${vc}">${d.verdict}</span>
+            </div>
+            <div class="detail-grid">`;
+        if (d.case_name) h += detail('Actual case', d.case_name);
+        if (d.cited_name && d.case_name && d.cited_name !== d.case_name) {
+            h += detail('Cited as', d.cited_name);
+            h += detail('Name match', d.match_pct + '%');
+        } else if (d.match_pct != null) {
+            h += detail('Name match', d.match_pct + '%');
+        }
+        if (d.cluster_id) h += detail('Cluster ID', d.cluster_id, true);
+        if (d.local_csv)  h += detail('Local CSV', d.local_csv);
+        h += `</div>`;
+        if (d.message) h += `<div class="reasoning">${d.message}</div>`;
+        h += `</div>`;
+        return h;
+    }
+
+    function renderPhase2(d) {
+        const dv = d.display_verdict || d.verdict;
+        const vc = verdictClass(dv);
+        let h = `<div class="phase-block">
+            <div class="phase-header">
+                <span class="phase-label">Phase 2 -- Quote Verification</span>
+                <span class="verdict ${vc}">${dv}</span>
+                ${d.score_pct != null ? `<span class="confidence-tag">Score: ${d.score_pct}%</span>` : ''}
+            </div>`;
+        if (d.reasoning) h += `<div class="reasoning">${d.reasoning}</div>`;
+        if (d.passage)   h += `<div class="passage">${d.passage}</div>`;
+        h += `</div>`;
+        return h;
+    }
+
+    function renderPhase3(d) {
+        const vc = verdictClass(d.verdict);
+        let h = `<div class="phase-block">
+            <div class="phase-header">
+                <span class="phase-label">Phase 3 -- Coherence</span>
+                <span class="verdict ${vc}">${d.verdict}</span>
+                ${d.confidence ? `<span class="confidence-tag">${d.confidence} confidence</span>` : ''}
+            </div>`;
+        if (d.reasoning) h += `<div class="reasoning">${d.reasoning}</div>`;
+        h += `</div>`;
+        return h;
+    }
+
+    function scrollToProgress() {
+        document.getElementById('progress-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function scrollToResults() {
+        document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async function runWilson() {
+        const citation = document.getElementById('citation').value.trim();
+        if (!citation) { alert('Please enter a citation.'); return; }
+
+        const quoted_text  = document.getElementById('quoted_text').value.trim();
+        const proposition  = document.getElementById('proposition').value.trim();
+
+        const btn      = document.getElementById('run-btn');
+        const results  = document.getElementById('results');
+        const progSec  = document.getElementById('progress-section');
+        const progLog  = document.getElementById('progress-log');
+
+        btn.disabled = true;
+        btn.textContent = 'Running...';
+        results.innerHTML = '';
+        progLog.innerHTML = '';
+        progSec.style.display = 'block';
+        setProgress(3, true);
+        startTimer();
+        scrollToProgress();
+
+        try {
+            const response = await fetch('/verify/stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    citation,
+                    quoted_text: quoted_text || null,
+                    proposition: proposition || null
+                })
+            });
+
+            const reader  = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
+
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    const raw = line.slice(6).trim();
+                    if (!raw) continue;
+                    let e;
+                    try { e = JSON.parse(raw); } catch { continue; }
+
+                    const t = e.type;
+
+                    if (t === 'status') {
+                        addLog(e.message);
+                        setProgress(8, true);
+                    }
+
+                    else if (t === 'parsed') {
+                        addLog('Citation parsed');
+                        setProgress(18, true);
+                        const p = e.data;
+                        let s = `${p.volume} ${p.reporter} ${p.page}`;
+                        if (p.plaintiff && p.defendant) s += ` -- ${p.plaintiff} v. ${p.defendant}`;
+                        if (p.year)  s += ` (${p.year})`;
+                        if (p.court) s += ` [${p.court}]`;
+                        let html = `<div class="parsed-bar">${s}`;
+                        if (p.used_fallback) {
+                            html += `<div class="fallback-note">Name-based lookup -- full citation: ${p.fallback_citation}</div>`;
+                        }
+                        html += `</div>`;
+                        results.innerHTML = html;
+                    }
+
+                    else if (t === 'phase1_start') {
+                        addLog(e.message);
+                        setProgress(25, true);
+                    }
+
+                    else if (t === 'phase1_complete') {
+                        addLog('Phase 1: ' + e.data.verdict);
+                        setProgress(45, true);
+                        results.innerHTML += renderPhase1(e.data);
+                        scrollToResults();
+                    }
+
+                    else if (t === 'phase2_start') {
+                        addLog(e.message);
+                        setProgress(55, true);
+                    }
+
+                    else if (t === 'phase2_complete') {
+                        addLog('Phase 2: ' + (e.data.display_verdict || e.data.verdict));
+                        setProgress(72, true);
+                        results.innerHTML += renderPhase2(e.data);
+                        scrollToResults();
+                    }
+
+                    else if (t === 'phase3_start') {
+                        addLog(e.message);
+                        setProgress(80, true);
+                    }
+
+                    else if (t === 'phase3_complete') {
+                        addLog('Phase 3: ' + e.data.verdict);
+                        setProgress(95, true);
+                        results.innerHTML += renderPhase3(e.data);
+                        scrollToResults();
+                    }
+
+                    else if (t === 'unparseable') {
+                        addLog('Could not parse', 'done');
+                        setProgress(100, false);
+                        results.innerHTML += `<div class="error-block">${e.message}</div>`;
+                        scrollToResults();
+                    }
+
+                    else if (t === 'done') {
+                        addLog(`Complete`, 'done');
+                        setProgress(100, false);
+                        stopTimer(e.duration);
+                    }
+                }
+            }
+
+        } catch (err) {
+            stopTimer();
+            setProgress(100, false);
+            results.innerHTML = `<div class="error-block">Request failed: ${err.message}</div>`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Run Wilson';
+        }
+    }
+
+    function resetForm() {
+        document.getElementById('citation').value = '';
+        document.getElementById('quoted_text').value = '';
+        document.getElementById('proposition').value = '';
+        document.getElementById('results').innerHTML = '';
+        document.getElementById('progress-log').innerHTML = '';
+        document.getElementById('progress-section').style.display = 'none';
+        document.getElementById('timer').textContent = '0.0s';
+        setProgress(0, false);
+        stopTimer(null);
+        document.getElementById('citation').focus();
+    }
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.target.id === 'citation')) {
+            e.preventDefault();
+            runWilson();
+        }
+        if (e.key === 'Escape') resetForm();
+    });
+</script>
+</body>
+</html>
