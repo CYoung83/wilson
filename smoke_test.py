@@ -6,7 +6,7 @@ Demonstrates the complete Phase 1 + Phase 2 pipeline:
 Phase 1: Citation existence verification
   - Extract citation with eyecite
   - Verify against CourtListener API (v4)
-  - Verify against local citations CSV (18M records)
+  - Verify against local citations CSV (18M records, optional)
 
 Phase 2: Quote verification
   - Fetch full opinion text from CourtListener
@@ -17,6 +17,9 @@ Test cases:
   A) Known fabricated citation (Mata v. Avianca) — should fail existence check
   B) Real citation with real quote (Strickland) — should pass existence and quote check
   C) Real citation with fabricated quote (Strickland) — should pass existence, fail quote check
+
+Local CSV is optional. If not present, Step 3 is skipped gracefully.
+Configure CITATIONS_CSV in .env or download bulk data per README instructions.
 """
 
 import os
@@ -27,9 +30,14 @@ from eyecite import get_citations
 from quote_verify import verify_quote
 
 load_dotenv()
+
 CL_TOKEN = os.getenv("COURTLISTENER_TOKEN")
 CL_HEADERS = {"Authorization": f"Token {CL_TOKEN}"}
-CITATIONS_CSV = "/mnt/wilson-data/courtlistener/citations-2026-03-31.csv"
+
+CITATIONS_CSV = os.getenv(
+    "CITATIONS_CSV",
+    "/var/mnt/wilson-data/courtlistener/citations-2026-03-31.csv"
+)
 
 
 def lookup_citation(text):
@@ -54,17 +62,23 @@ def lookup_citation(text):
         return False, None, "Citation found but no cluster data returned"
 
     cluster_id = clusters[0]["id"]
-    
     return True, cluster_id, f"Found — cluster ID {cluster_id}"
 
 
 def check_local_csv(citations):
     """
     Check extracted eyecite citations against local bulk CSV.
-    Returns (found: bool, message: str)
+    Returns (found: bool or None, message: str)
+    None indicates the check was skipped (CSV not available).
     """
     if not citations:
         return False, "No citations extracted"
+
+    if not os.path.exists(CITATIONS_CSV):
+        return None, (
+            f"Local CSV not found at {CITATIONS_CSV} — skipping offline check. "
+            f"See README for bulk data download instructions."
+        )
 
     c = citations[0]
     groups = c.groups
@@ -84,7 +98,7 @@ def check_local_csv(citations):
         else:
             return False, "Not found in local CSV"
     except Exception as e:
-        return False, f"CSV error: {e}"
+        return None, f"CSV error: {e}"
 
 
 def run_test(label, citation_text, quoted_text=None):
@@ -112,7 +126,10 @@ def run_test(label, citation_text, quoted_text=None):
     # Step 3: Local CSV
     print(f"\n[STEP 3] Local CSV verification...")
     csv_found, csv_message = check_local_csv(citations)
-    print(f"  {'FOUND' if csv_found else 'NOT FOUND'}: {csv_message}")
+    if csv_found is None:
+        print(f"  SKIPPED: {csv_message}")
+    else:
+        print(f"  {'FOUND' if csv_found else 'NOT FOUND'}: {csv_message}")
 
     # Step 4: Quote verification (only if citation exists and quote provided)
     if quoted_text:
@@ -132,6 +149,16 @@ if __name__ == "__main__":
     print("=" * 60)
     print("WILSON v0.0.2 — FULL PIPELINE TEST")
     print("=" * 60)
+
+    # Report CSV status upfront
+    if os.path.exists(CITATIONS_CSV):
+        print(f"\nLocal CSV: {CITATIONS_CSV}")
+        print(f"Offline verification: ENABLED")
+    else:
+        print(f"\nLocal CSV: NOT FOUND")
+        print(f"Offline verification: DISABLED")
+        print(f"To enable: download bulk data per README instructions")
+        print(f"Configure path via CITATIONS_CSV in .env")
 
     # Test A: Known fabricated citation — should fail at existence
     run_test(

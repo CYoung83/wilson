@@ -70,6 +70,18 @@ cp .env.example .env
 # Edit .env and add your CourtListener API token
 ```
 
+### Optional — Download bulk citation data (enables offline verification)
+```bash
+# Download (~121MB compressed, ~1.9GB uncompressed)
+wget "https://com-courtlistener-storage.s3-us-west-2.amazonaws.com/bulk-data/citations-2026-03-31.csv.bz2"
+bunzip2 citations-2026-03-31.csv.bz2
+
+# Add path to .env
+echo "CITATIONS_CSV=/path/to/citations-2026-03-31.csv" >> .env
+```
+
+Without the bulk data, Wilson still runs Phases 1 and 2 via the CourtListener API. The local CSV enables air-gap capable offline verification.
+
 ### Configure
 
 Edit `.env`:
