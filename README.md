@@ -26,15 +26,29 @@ Wilson is the accountability layer those systems cannot provide for themselves.
 
 ## Current Status
 
-**Proof of concept — pipeline functional as of April 2, 2026.**
+**Proof of concept — full three-phase pipeline functional as of April 2, 2026.**
 
-The current implementation:
+Verified against Mata v. Avianca (1:22-cv-01461, S.D.N.Y.) — the most sanctioned AI hallucination case in US legal history. Wilson correctly identified all six citations in the original filing: three fabricated, two misattributed to wrong cases at valid coordinates, one legitimate. 6/6 accuracy. Zero false positives.
+
+### Phase 1 — Citation Existence
 - Extracts legal citations from any text using [eyecite](https://github.com/freelawproject/eyecite)
 - Verifies existence against 18 million federal case records from [CourtListener](https://www.courtlistener.com)
-- Returns a full reasoning trace at each verification step
+- Verifies case name against actual case at cited coordinates — catches misattributed citations
 - Operates against both live API and local bulk data — air gap capable
+- Verdicts: **FABRICATED** | **MISATTRIBUTED** | **EXISTS**
 
-**Next milestone:** Coherence checking — auditing whether a citation actually supports the proposition it's cited for, not just whether it exists.
+### Phase 2 — Quote Verification
+- Fetches full opinion text from CourtListener (up to 212,000+ characters)
+- Checks whether quoted language appears verbatim or approximately in the opinion
+- Flags false quotes and paraphrasing presented as direct quotation
+- Verdicts: **EXACT_MATCH** | **FUZZY_MATCH** | **NOT_FOUND**
+
+### Phase 3 — Coherence Checking
+- Sends full opinion text to a local LLM via Ollama
+- Asks whether the cited case actually supports the proposition it is cited for
+- Runs entirely locally — no case data leaves the machine
+- Requires Ollama with any capable model (7B+ recommended)
+- Verdicts: **SUPPORTS** | **DOES_NOT_SUPPORT** | **UNCERTAIN** | **SKIPPED**
 
 ---
 
@@ -42,7 +56,8 @@ The current implementation:
 
 ### Prerequisites
 - Python 3.12+
-- CourtListener API token (free at [courtlistener.com](https://www.courtlistener.com))
+- CourtListener API token — free at [courtlistener.com](https://www.courtlistener.com)
+- Ollama (optional) — for Phase 3 coherence checking — [ollama.com](https://ollama.com)
 
 ### Setup
 ```bash
@@ -51,38 +66,94 @@ cd wilson
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-echo "COURTLISTENER_TOKEN=your_token_here" > .env
+cp .env.example .env
+# Edit .env and add your CourtListener API token
 ```
 
-### Run the smoke test
+### Configure
+
+Edit `.env`:
+```bash
+COURTLISTENER_TOKEN=your_token_here
+
+# Optional — Phase 3 coherence checking
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=llama3
+OLLAMA_CONTEXT_SIZE=32000
+```
+
+### Run the smoke test (Phases 1 + 2)
 ```bash
 python3 smoke_test.py
 ```
 
-Expected output: Wilson extracts a known fabricated citation from *Mata v. Avianca* — the first major AI hallucination sanctions case — verifies it against CourtListener's API and local bulk data, and returns NOT FOUND with a full reasoning trace.
+Expected output: Wilson runs three test cases — a fabricated citation from Mata v. Avianca (NOT FOUND on both API and local CSV), a real citation with a real quote (FOUND + FUZZY_MATCH), and a real citation with a fabricated quote (FOUND + NOT_FOUND).
+
+### Run the Mata v. Avianca proof of concept
+```bash
+python3 test_mata_avianca.py
+```
+
+Expected output: 6/6 correct verdicts across FABRICATED, MISATTRIBUTED, and EXISTS categories.
+
+### Run coherence checking (Phase 3, requires Ollama)
+```bash
+python3 coherence_check.py
+```
+
+Expected output: Three Strickland v. Washington test cases — correct proposition (SUPPORTS), wrong proposition (DOES_NOT_SUPPORT), subtle misrepresentation (DOES_NOT_SUPPORT). All HIGH confidence.
 
 ---
 
 ## Architecture
-
-Wilson's core pipeline:
 ```
-Input (legal text)
-    ↓
+Input (legal text or document)
+         ↓
 Citation Extraction (eyecite)
-    ↓
-Existence Verification (CourtListener API + local bulk data)
-    ↓
-Reasoning Trace (documented evidence chain)
-    ↓
-Verdict (VERIFIED / NOT FOUND / MISREPRESENTED) + full chain
+         ↓
+┌─────────────────────────────────┐
+│ PHASE 1: Existence Verification │
+│  • CourtListener API lookup     │
+│  • Local bulk CSV (18M records) │
+│  • Case name verification       │
+│  → FABRICATED / MISATTRIBUTED / EXISTS
+└─────────────────────────────────┘
+         ↓ (if EXISTS)
+┌─────────────────────────────────┐
+│ PHASE 2: Quote Verification     │
+│  • Fetch full opinion text      │
+│  • Exact + fuzzy match          │
+│  → EXACT_MATCH / FUZZY_MATCH / NOT_FOUND
+└─────────────────────────────────┘
+         ↓ (if Ollama configured)
+┌─────────────────────────────────┐
+│ PHASE 3: Coherence Checking     │
+│  • Full opinion → local LLM     │
+│  • Does case support proposition?
+│  → SUPPORTS / DOES_NOT_SUPPORT / UNCERTAIN
+└─────────────────────────────────┘
+         ↓
+Full Reasoning Trace (every step documented)
 ```
 
 **Design principles:**
-- No privileged access to audited systems — Wilson reads public records and logs
-- Air gap capable — core pipeline functions offline against local bulk data
+- No privileged access to audited systems — Wilson reads public records
+- Air gap capable — Phase 1 functions fully offline against local bulk data
 - No proprietary dependencies — eyecite (BSD), CourtListener (CC BY-ND), CAP (CC0)
+- Phase 3 runs locally — no case data sent to external services
 - Every output includes the reasoning chain that produced it
+
+---
+
+## Deployment Tiers
+
+| Tier | Requirements | Capabilities |
+|------|-------------|--------------|
+| Free / Air-Gap | CourtListener token + bulk CSV | Phases 1 + 2 |
+| + Coherence | Tier 1 + Ollama (any model, 7B+) | Phases 1 + 2 + 3 |
+| + Source Docs | Tier 2 + PACER account | Original filing retrieval |
+
+See [API_ACCESS_NOTES.md](API_ACCESS_NOTES.md) for full data source documentation.
 
 ---
 
@@ -91,13 +162,16 @@ Verdict (VERIFIED / NOT FOUND / MISREPRESENTED) + full chain
 - [x] Citation extraction (eyecite)
 - [x] Existence verification against CourtListener API
 - [x] Existence verification against local bulk data (18M records)
+- [x] Case name verification — catches misattributed citations
 - [x] Full reasoning trace generation
-- [ ] Coherence checking — does the citation support the cited proposition?
-- [ ] Quote verification — does the quoted text appear in the cited opinion?
-- [ ] Batch processing — full document audit
+- [x] Quote verification — exact and fuzzy match against full opinion text
+- [x] Coherence checking — local LLM audits whether case supports proposition
+- [x] Proof of concept verified — Mata v. Avianca 6/6
+- [ ] Batch processing — full document audit pipeline
 - [ ] HTML report generation
-- [ ] API endpoint for workflow integration
+- [ ] REST API endpoint for workflow integration
 - [ ] Front-end interface
+- [ ] PACER integration for original filing retrieval
 
 ---
 
@@ -105,8 +179,9 @@ Verdict (VERIFIED / NOT FOUND / MISREPRESENTED) + full chain
 
 | Source | Purpose | License |
 |--------|---------|---------|
-| [CourtListener](https://www.courtlistener.com) | Case lookup and verification | CC BY-ND |
+| [CourtListener](https://www.courtlistener.com) | Case lookup, verification, full opinion text | CC BY-ND |
 | [Free Law Project Bulk Data](https://www.courtlistener.com/help/api/bulk-data/) | Local citation database (18M records) | CC BY-ND |
+| [Harvard CAP](https://case.law) | Historical caselaw (6.7M decisions, 1658–2020) | CC0 |
 | [eyecite](https://github.com/freelawproject/eyecite) | Citation extraction | BSD |
 | [Charlotin Hallucination Database](https://www.damiencharlotin.com/hallucinations/) | Primary test dataset | — |
 
@@ -114,12 +189,14 @@ Verdict (VERIFIED / NOT FOUND / MISREPRESENTED) + full chain
 
 ## Contributing
 
-Wilson is open source because auditability requires transparency. Contributions are welcome — particularly in the following areas:
+Wilson is open source because auditability requires transparency. Contributions are welcome — particularly:
 
-- Coherence checking logic
-- Quote verification against full opinion text
+- Batch processing pipeline for full document audit
+- HTML report generation
+- REST API endpoint
 - Additional data source integrations
-- Documentation and test coverage
+- Test coverage expansion
+- Documentation
 
 Open an issue before submitting a pull request so we can discuss approach.
 
@@ -129,7 +206,7 @@ Open an issue before submitting a pull request so we can discuss approach.
 
 Named for the volleyball in *Cast Away* — something real built under duress because survival required it. A thinking partner that keeps you sane when the system breaks down around you.
 
-Wilson is developed by [National Standard Consulting LLC](https://nationalstandardconsulting.com).
+Wilson is developed by [National Standard Consulting LLC](https://github.com/CYoung83), an SDVOSB founded by a US Navy veteran and former GS-13 Training and Exercise Program Specialist at USNORTHCOM.
 
 ---
 
