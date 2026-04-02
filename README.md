@@ -34,7 +34,7 @@ Verified against Mata v. Avianca (1:22-cv-01461, S.D.N.Y.) — the most sanction
 ### Phase 1 — Citation Existence
 - Extracts legal citations from any text using [eyecite](https://github.com/freelawproject/eyecite)
 - Name-based fallback lookup when only a case name is provided
-- Verifies existence against 18 million federal case records — loaded into memory for fast offline lookup
+- Verifies existence against 18 million federal case records — loaded into memory for fast offline lookup (~2GB RAM)
 - Verifies case name against actual case at cited coordinates — catches misattributed citations
 - Operates against both live API and local bulk data — air gap capable
 - Verdicts: **FABRICATED** | **MISATTRIBUTED** | **EXISTS**
