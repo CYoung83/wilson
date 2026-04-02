@@ -10,9 +10,11 @@ This is Phase 3 of Wilson's pipeline:
   Phase 2: Does the quoted text appear in the opinion? (quote_verify.py)
   Phase 3: Does the case actually support the proposition? (this file)
 
-Phase 3 requires a local Ollama instance. Configure OLLAMA_HOST and
-OLLAMA_MODEL in your .env file. If not configured, Wilson reports
-Phase 3 as skipped and completes Phases 1 and 2 only.
+Phase 3 requires a local Ollama instance. Configure OLLAMA_HOST,
+OLLAMA_MODEL, and OLLAMA_CONTEXT_SIZE in your .env file.
+
+If not configured, Wilson reports Phase 3 as skipped and completes
+Phases 1 and 2 only.
 
 Uses local inference — no case data leaves the machine.
 """
@@ -31,6 +33,7 @@ CL_HEADERS = {"Authorization": f"Token {CL_TOKEN}"}
 
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
+OLLAMA_CONTEXT_SIZE = int(os.getenv("OLLAMA_CONTEXT_SIZE", "32000"))
 
 SYSTEM_PROMPT = """You are a legal citation auditor. You ALWAYS respond with only a valid JSON object and nothing else. Never respond with prose, explanation, or thinking before or after the JSON. Your entire response must be a single parseable JSON object in this exact format:
 
@@ -53,7 +56,7 @@ def coherence_available():
             models = resp.json().get("models", [])
             model_names = [m["name"] for m in models]
             if any(OLLAMA_MODEL in name for name in model_names):
-                return True, f"Ollama reachable at {OLLAMA_HOST} — model {OLLAMA_MODEL} loaded"
+                return True, f"Ollama reachable at {OLLAMA_HOST} — model {OLLAMA_MODEL} loaded (context: {OLLAMA_CONTEXT_SIZE:,} tokens)"
             else:
                 return False, f"Ollama reachable but model '{OLLAMA_MODEL}' not found. Available: {model_names}"
         return False, f"Ollama returned status {resp.status_code}"
@@ -90,14 +93,33 @@ def fetch_opinion_text(cluster_id):
     return full_text.strip() if full_text else None
 
 
-def truncate_opinion(opinion_text, max_chars=8000):
+def truncate_opinion(opinion_text, max_chars=None):
     """
     Truncate opinion text to fit in context window.
-    Takes first 6000 and last 2000 characters.
+    Uses OLLAMA_CONTEXT_SIZE from .env if max_chars not specified.
+
+    With large context models (nemotron 256k, llama3.1 128k),
+    sends the full opinion text without truncation.
+
+    Conversion: roughly 3 chars per token, leaving room for
+    prompt template and system message overhead.
     """
+    if max_chars is None:
+        max_chars = OLLAMA_CONTEXT_SIZE * 3
+
     if len(opinion_text) <= max_chars:
         return opinion_text
-    return opinion_text[:6000] + "\n\n[... opinion truncated ...]\n\n" + opinion_text[-2000:]
+
+    # For truncated opinions: first 75%, last 25%
+    # Holdings appear at start, conclusions at end
+    first_chunk = int(max_chars * 0.75)
+    last_chunk = max_chars - first_chunk
+
+    return (
+        opinion_text[:first_chunk] +
+        "\n\n[... opinion truncated — context limit reached ...]\n\n" +
+        opinion_text[-last_chunk:]
+    )
 
 
 def extract_verdict_from_prose(prose):
@@ -179,7 +201,10 @@ def check_coherence(proposition, case_name, cluster_id, opinion_text=None):
         return {
             "verdict": "SKIPPED",
             "confidence": None,
-            "reasoning": f"Phase 3 skipped — {availability_message}. Configure OLLAMA_HOST and OLLAMA_MODEL in .env to enable coherence checking.",
+            "reasoning": (
+                f"Phase 3 skipped — {availability_message}. "
+                f"Configure OLLAMA_HOST and OLLAMA_MODEL in .env to enable coherence checking."
+            ),
             "thinking": None
         }
 
@@ -196,6 +221,11 @@ def check_coherence(proposition, case_name, cluster_id, opinion_text=None):
         }
 
     truncated = truncate_opinion(opinion_text)
+    char_count = len(truncated)
+    was_truncated = len(opinion_text) > char_count
+
+    print(f"  [COHERENCE] Opinion: {len(opinion_text):,} chars"
+          f"{' → truncated to ' + str(char_count) + ' chars' if was_truncated else ' (full text)'}")
 
     prompt = f"""Determine whether the cited case supports the legal proposition.
 
@@ -225,10 +255,11 @@ JSON RESPONSE:"""
                 "stream": False,
                 "options": {
                     "temperature": 0.1,
-                    "num_predict": 512
+                    "num_predict": 1024,
+                    "num_ctx": OLLAMA_CONTEXT_SIZE
                 }
             },
-            timeout=120
+            timeout=300
         )
 
         data = resp.json()
