@@ -25,6 +25,18 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import requests as http_requests
+
+# Pydantic models for settings API
+class OllamaModelRequest(BaseModel):
+    model: str
+
+class OllamaHostRequest(BaseModel):
+    host: str
+    save: bool = False
+
+class CourtListenerTokenRequest(BaseModel):
+    token: str
+    save: bool = False
 from eyecite import get_citations
 from rapidfuzz import fuzz
 
@@ -50,9 +62,14 @@ async def lifespan(app: FastAPI):
 CL_TOKEN = os.getenv("COURTLISTENER_TOKEN")
 CL_HEADERS = {"Authorization": f"Token {CL_TOKEN}"}
 CITATIONS_CSV = os.getenv("CITATIONS_CSV", "data/citations-2026-03-31.csv")
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3:latest")
 CASE_NAME_MATCH_THRESHOLD = 75
 FALLBACK_CONFIDENCE_THRESHOLD = 60
 MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50MB in bytes
+
+# Path to .env file -- resolved relative to this script for portability
+ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 
 # ------------------------------------------------------------------------------
 # In-memory CSV — loaded once at first request, reused for all subsequent queries
@@ -67,6 +84,49 @@ def get_citations_df():
         _citations_df = pd.read_csv(CITATIONS_CSV, dtype=str)
         print(f"Loaded {len(_citations_df):,} citation records")
     return _citations_df
+
+
+def write_env_value(key: str, value: str) -> bool:
+    """
+    Update a single key=value pair in the .env file.
+
+    If the key exists, replaces its value in-place.
+    If the key does not exist, appends it.
+    Never raises -- returns False on any error.
+
+    Args:
+        key: environment variable name (e.g. "OLLAMA_MODEL")
+        value: new value to set
+
+    Returns:
+        True on success, False on any error
+    """
+    try:
+        if os.path.exists(ENV_PATH):
+            with open(ENV_PATH, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+        else:
+            lines = []
+
+        found = False
+        new_lines = []
+        for line in lines:
+            if line.startswith(f"{key}=") or line.startswith(f"{key} ="):
+                new_lines.append(f"{key}={value}\n")
+                found = True
+            else:
+                new_lines.append(line)
+
+        if not found:
+            new_lines.append(f"{key}={value}\n")
+
+        with open(ENV_PATH, "w", encoding="utf-8") as f:
+            f.writelines(new_lines)
+
+        return True
+    except Exception as e:
+        print(f"write_env_value failed for {key}: {e}")
+        return False
 
 
 # CSV update check -- populated at startup, checked by /health endpoint
@@ -631,6 +691,134 @@ async def health():
             "latest_filename": CSV_LATEST_FILENAME
         }
     }
+
+
+@app.get("/settings/ollama-models")
+async def get_ollama_models():
+    """
+    Return available Ollama models by querying the configured Ollama instance.
+
+    Proxies to OLLAMA_HOST/api/tags to avoid CORS issues in the browser.
+    Returns empty list with ollama_available=False if Ollama is unreachable.
+    """
+    try:
+        resp = http_requests.get(
+            f"{OLLAMA_HOST}/api/tags",
+            timeout=5
+        )
+        if resp.status_code == 200:
+            models = [m["name"] for m in resp.json().get("models", [])]
+            return {
+                "models": models,
+                "current": OLLAMA_MODEL,
+                "ollama_available": True
+            }
+        return {"models": [], "current": OLLAMA_MODEL, "ollama_available": False}
+    except Exception:
+        return {"models": [], "current": OLLAMA_MODEL, "ollama_available": False}
+
+
+@app.post("/settings/ollama-model")
+async def update_ollama_model(request: OllamaModelRequest):
+    """
+    Update the active Ollama model in memory and persist to .env.
+
+    Does not restart the server -- the new model takes effect on the
+    next Phase 3 coherence check call.
+
+    Args:
+        request: OllamaModelRequest with model name
+
+    Returns:
+        success bool and updated model name
+    """
+    global OLLAMA_MODEL
+    OLLAMA_MODEL = request.model
+    write_env_value("OLLAMA_MODEL", request.model)
+    return {"success": True, "model": request.model}
+
+
+@app.post("/settings/ollama-host")
+async def update_ollama_host(request: OllamaHostRequest):
+    """
+    Test and optionally update the Ollama host.
+
+    If save=False, tests the connection without persisting.
+    If save=True, tests the connection, updates OLLAMA_HOST global,
+    and writes to .env.
+
+    Args:
+        request: OllamaHostRequest with host URL and save flag
+
+    Returns:
+        success bool, connected bool, available models list
+    """
+    global OLLAMA_HOST
+    try:
+        resp = http_requests.get(
+            f"{request.host}/api/tags",
+            timeout=5
+        )
+        connected = resp.status_code == 200
+        models = []
+        if connected:
+            models = [m["name"] for m in resp.json().get("models", [])]
+    except Exception as e:
+        return {
+            "success": False,
+            "host": request.host,
+            "connected": False,
+            "models": [],
+            "error": f"Cannot reach Ollama at {request.host}"
+        }
+
+    if request.save and connected:
+        OLLAMA_HOST = request.host
+        write_env_value("OLLAMA_HOST", request.host)
+
+    return {
+        "success": connected,
+        "host": request.host,
+        "connected": connected,
+        "models": models
+    }
+
+
+@app.post("/settings/courtlistener-token")
+async def update_courtlistener_token(request: CourtListenerTokenRequest):
+    """
+    Validate a CourtListener API token and optionally persist it.
+
+    If save=False, validates without persisting.
+    If save=True, validates, updates CL_TOKEN and CL_HEADERS globals,
+    and writes to .env.
+
+    Validation: GET to CourtListener API root with the token.
+    200 = valid. Anything else = invalid.
+
+    Args:
+        request: CourtListenerTokenRequest with token and save flag
+
+    Returns:
+        success bool and valid bool
+    """
+    global CL_TOKEN, CL_HEADERS
+    try:
+        resp = http_requests.get(
+            "https://www.courtlistener.com/api/rest/v4/",
+            headers={"Authorization": f"Token {request.token}"},
+            timeout=8
+        )
+        valid = resp.status_code == 200
+    except Exception:
+        return {"success": False, "valid": False}
+
+    if request.save and valid:
+        CL_TOKEN = request.token
+        CL_HEADERS = {"Authorization": f"Token {CL_TOKEN}"}
+        write_env_value("COURTLISTENER_TOKEN", request.token)
+
+    return {"success": True, "valid": valid}
 
 
 @app.post("/verify/stream")

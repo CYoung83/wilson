@@ -5,12 +5,59 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wilson -- AI Citation Auditor</title>
     <style>
+        /* ── Theme system ─────────────────────────────────────────────── */
+        :root {
+            --bg: #0a0a0a;
+            --bg-card: #111;
+            --bg-elevated: #161616;
+            --text: #e0e0e0;
+            --text-muted: #888;
+            --border: #252525;
+            --accent: #4caf50;
+            --accent-dark: #0d2a0d;
+            --accent-border: #1a4a1a;
+            --accent-warn: #ff9800;
+            --accent-warn-dark: #4a3a1a;
+            --accent-err: #f44336;
+            --spacing: 1rem;
+        }
+        [data-theme="light"] {
+            --bg: #f5f5f5;
+            --bg-card: #fff;
+            --bg-elevated: #f0f0f0;
+            --text: #1a1a1a;
+            --text-muted: #666;
+            --border: #ddd;
+            --accent: #2e7d32;
+            --accent-dark: #e8f5e9;
+            --accent-border: #a5d6a7;
+            --accent-warn: #e65100;
+            --accent-warn-dark: #fff3e0;
+            --accent-err: #c62828;
+            --spacing: 1rem;
+        }
+        [data-theme="high-contrast"] {
+            --bg: #000;
+            --bg-card: #000;
+            --bg-elevated: #111;
+            --text: #fff;
+            --text-muted: #ccc;
+            --border: #fff;
+            --accent: #0f0;
+            --accent-dark: #001100;
+            --accent-border: #0f0;
+            --accent-warn: #ff0;
+            --accent-warn-dark: #111100;
+            --accent-err: #f00;
+            --spacing: 1rem;
+        }
+        [data-theme="compact"] { --spacing: 0.5rem; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
-            background: #0a0a0a;
-            color: #e0e0e0;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
             padding: 1.5rem;
         }
@@ -61,11 +108,11 @@
 
         .status-pill.ok  { border-color: #1a4a1a; background: #0d2a0d; color: #4caf50; }
         .status-pill.warn{ border-color: #4a3a1a; background: #2a1f0d; color: #ff9800; }
-        .status-pill.off { border-color: #2a2a2a; background: #111;    color: #444;    }
+        .status-pill.off { border-color: #2a2a2a; background: var(--bg-card);    color: #444;    }
 
         /* ---- Form ---- */
         .form-panel {
-            background: #111;
+            background: var(--bg-card);
             border: 1px solid #1e1e1e;
             border-radius: 8px;
             padding: 1.25rem;
@@ -83,7 +130,7 @@
         label {
             display: block;
             font-size: 0.8rem;
-            color: #888;
+            color: var(--text-muted);
             margin-bottom: 0.3rem;
             margin-top: 0.85rem;
         }
@@ -94,8 +141,8 @@
 
         input[type="text"], textarea {
             width: 100%;
-            background: #0a0a0a;
-            border: 1px solid #252525;
+            background: var(--bg);
+            border: 1px solid var(--border);
             border-radius: 4px;
             color: #ddd;
             padding: 0.55rem 0.7rem;
@@ -121,8 +168,8 @@
         button {
             flex: 1;
             padding: 0.65rem;
-            background: #161616;
-            border: 1px solid #252525;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
             border-radius: 5px;
             color: #ccc;
             font-size: 0.86rem;
@@ -150,7 +197,7 @@
 
         .progress-track {
             height: 6px;
-            background: #161616;
+            background: var(--bg-elevated);
             border-radius: 3px;
             overflow: hidden;
             margin-bottom: 0.5rem;
@@ -200,7 +247,7 @@
 
         /* ---- Results ---- */
         .parsed-bar {
-            background: #0a0a0a;
+            background: var(--bg);
             border: 1px solid #1a1a1a;
             border-radius: 4px;
             padding: 0.5rem 0.75rem;
@@ -218,7 +265,7 @@
         }
 
         .phase-block {
-            background: #111;
+            background: var(--bg-card);
             border: 1px solid #1e1e1e;
             border-radius: 8px;
             padding: 1rem;
@@ -257,7 +304,7 @@
         .v-green  { background: #0d2a0d; color: #4caf50; border: 1px solid #1a4a1a; }
         .v-red    { background: #2a0d0d; color: #f44336; border: 1px solid #4a1a1a; }
         .v-orange { background: #2a1f0d; color: #ff9800; border: 1px solid #4a3a1a; }
-        .v-grey   { background: #161616; color: #555;    border: 1px solid #222;    }
+        .v-grey   { background: var(--bg-elevated); color: #555;    border: 1px solid #222;    }
 
         .confidence-tag {
             font-size: 0.68rem;
@@ -274,12 +321,12 @@
         }
 
         .dk { color: #3a3a3a; }
-        .dv { color: #888; word-break: break-word; }
+        .dv { color: var(--text-muted); word-break: break-word; }
         .dv.mono { font-family: monospace; font-size: 0.72rem; }
 
         .reasoning {
             padding: 0.6rem 0.7rem;
-            background: #0a0a0a;
+            background: var(--bg);
             border-radius: 4px;
             font-size: 0.76rem;
             color: #666;
@@ -290,7 +337,7 @@
         .passage {
             margin-top: 0.4rem;
             padding: 0.55rem 0.7rem;
-            background: #0a0a0a;
+            background: var(--bg);
             border-radius: 4px;
             font-size: 0.71rem;
             color: #444;
@@ -332,6 +379,27 @@
     <header>
         <h1>Wilson</h1>
         <span class="tagline">Wilson removes the advantage afforded to those who will lie.</span>
+        <button id="settings-btn" onclick="openSettings()"
+                aria-label="Open settings"
+                style="background:none;border:none;cursor:pointer;color:var(--text-muted);
+                       padding:0.25rem;border-radius:4px;display:flex;align-items:center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83
+                         2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1
+                         1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65
+                         1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65
+                         1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1
+                         0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82
+                         l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9
+                         4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65
+                         1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2
+                         0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65
+                         1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0
+                         0-1.51 1z"/>
+            </svg>
+        </button>
     </header>
 
     <div class="status-bar">
@@ -413,6 +481,22 @@
 
 </div>
 <script>
+    // ── Settings: apply before render to prevent flash ────────────────────────
+    function applySettings() {
+        const theme = localStorage.getItem('wilson-theme') || 'dark';
+        const fontSize = localStorage.getItem('wilson-font-size') || 'medium';
+        const density = localStorage.getItem('wilson-density') || 'comfortable';
+
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.style.fontSize = {
+            small: '13px', medium: '15px', large: '17px'
+        }[fontSize] || '15px';
+        document.documentElement.style.setProperty('--spacing',
+            density === 'compact' ? '0.5rem' : '1rem'
+        );
+    }
+    applySettings();
+
     let timerInterval = null;
     let startTime = null;
 
@@ -668,7 +752,7 @@
                                     Use "${e.data.suggested_citation}"
                                 </button>
                                 <button onclick="resetForm();"
-                                    style="flex: 0 0 auto; padding: 0.5rem 1rem; background: #161616; border: 1px solid #252525; border-radius: 4px; color: #888; cursor: pointer; font-family: inherit; font-size: 0.82rem;">
+                                    style="flex: 0 0 auto; padding: 0.5rem 1rem; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; font-family: inherit; font-size: 0.82rem;">
                                     Start over
                                 </button>
                             </div>
@@ -714,6 +798,360 @@
         }
         if (e.key === 'Escape') resetForm();
     });
+
+    // ── Settings drawer ─────────────────────────────────────────────────
+    function openSettings() {
+        document.getElementById('settings-drawer').style.right = '0';
+        document.getElementById('settings-overlay').style.display = 'block';
+        loadSettingsValues();
+    }
+
+    function closeSettings() {
+        document.getElementById('settings-drawer').style.right = '-340px';
+        document.getElementById('settings-overlay').style.display = 'none';
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeSettings();
+    });
+
+    function setSetting(key, value) {
+        localStorage.setItem('wilson-' + key, value);
+        applySettings();
+        // Sync select elements to current values
+        syncSettingSelects();
+    }
+
+    function syncSettingSelects() {
+        const theme = localStorage.getItem('wilson-theme') || 'dark';
+        const font = localStorage.getItem('wilson-font-size') || 'medium';
+        const density = localStorage.getItem('wilson-density') || 'comfortable';
+        const showLog = localStorage.getItem('wilson-show-log') !== 'false';
+
+        const tEl = document.getElementById('s-theme');
+        const fEl = document.getElementById('s-font');
+        const dEl = document.getElementById('s-density');
+        const lEl = document.getElementById('s-log');
+
+        if (tEl) tEl.value = theme;
+        if (fEl) fEl.value = font;
+        if (dEl) dEl.value = density;
+        if (lEl) lEl.checked = showLog;
+    }
+
+    function loadSettingsValues() {
+        syncSettingSelects();
+
+        // Load Ollama models
+        fetch('/settings/ollama-models')
+            .then(r => r.json())
+            .then(data => {
+                const sel = document.getElementById('s-ollama-model');
+                if (!sel) return;
+                sel.innerHTML = '';
+                if (!data.ollama_available) {
+                    sel.innerHTML = '<option value="">Ollama not connected</option>';
+                    sel.disabled = true;
+                    return;
+                }
+                sel.disabled = false;
+                data.models.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m;
+                    if (m === data.current) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+                // Set host field
+                const hostEl = document.getElementById('s-ollama-host');
+                if (hostEl) hostEl.placeholder = 'http://localhost:11434';
+            })
+            .catch(() => {
+                const sel = document.getElementById('s-ollama-model');
+                if (sel) sel.innerHTML = '<option>Ollama unavailable</option>';
+            });
+
+        // Load CSV info from health endpoint
+        fetch('/health')
+            .then(r => r.json())
+            .then(data => {
+                const el = document.getElementById('s-csv-info');
+                if (!el) return;
+                const phase = data.phases && data.phases.phase1_offline;
+                if (phase && phase.available) {
+                    el.innerHTML = phase.csv_path
+                        ? phase.csv_path.split(/[/\\]/).pop() +
+                          '<br>' + (phase.record_count || 0).toLocaleString() + ' records'
+                        : 'CSV configured';
+                } else {
+                    el.textContent = 'No CSV configured';
+                }
+                // CSV update status
+                const upd = document.getElementById('s-csv-update');
+                if (upd && data.csv_update && data.csv_update.available) {
+                    upd.style.color = 'var(--accent-warn)';
+                    upd.textContent = 'Update available: ' + (data.csv_update.latest_filename || '');
+                }
+            })
+            .catch(() => {});
+    }
+
+    function updateOllamaModel(model) {
+        if (!model) return;
+        const statusEl = document.getElementById('s-ollama-model-status');
+        if (statusEl) statusEl.textContent = 'Saving...';
+        fetch('/settings/ollama-model', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({model})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (statusEl) {
+                statusEl.style.color = data.success ? 'var(--accent)' : 'var(--accent-err)';
+                statusEl.textContent = data.success ? 'Model updated' : 'Update failed';
+            }
+        })
+        .catch(() => { if (statusEl) statusEl.textContent = 'Error'; });
+    }
+
+    function testOllamaHost(save) {
+        const hostEl = document.getElementById('s-ollama-host');
+        const statusEl = document.getElementById('s-ollama-host-status');
+        const host = hostEl ? hostEl.value.trim() : '';
+        if (!host) { if (statusEl) statusEl.textContent = 'Enter a host URL'; return; }
+        if (statusEl) statusEl.textContent = save ? 'Saving...' : 'Testing...';
+        fetch('/settings/ollama-host', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({host, save})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (statusEl) {
+                statusEl.style.color = data.connected ? 'var(--accent)' : 'var(--accent-err)';
+                statusEl.textContent = data.connected
+                    ? (save ? 'Saved -- ' : '') + 'Connected (' + (data.models||[]).length + ' models)'
+                    : data.error || 'Cannot connect';
+            }
+        })
+        .catch(() => { if (statusEl) statusEl.textContent = 'Request failed'; });
+    }
+
+    function verifyClToken(save) {
+        const tokenEl = document.getElementById('s-cl-token');
+        const statusEl = document.getElementById('s-cl-status');
+        const token = tokenEl ? tokenEl.value.trim() : '';
+        if (!token) { if (statusEl) statusEl.textContent = 'Enter a token'; return; }
+        if (statusEl) statusEl.textContent = save ? 'Saving...' : 'Verifying...';
+        fetch('/settings/courtlistener-token', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({token, save})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (statusEl) {
+                statusEl.style.color = data.valid ? 'var(--accent)' : 'var(--accent-err)';
+                statusEl.textContent = data.valid
+                    ? (save ? 'Saved -- ' : '') + 'Token valid'
+                    : 'Token invalid';
+            }
+        })
+        .catch(() => { if (statusEl) statusEl.textContent = 'Request failed'; });
+    }
+
+    function checkCsvUpdate() {
+        const el = document.getElementById('s-csv-update');
+        if (el) el.textContent = 'Checking...';
+        fetch('/health')
+            .then(r => r.json())
+            .then(data => {
+                if (!el) return;
+                if (data.csv_update && data.csv_update.available) {
+                    el.style.color = 'var(--accent-warn)';
+                    el.textContent = 'Update available: ' + (data.csv_update.latest_filename || '');
+                } else {
+                    el.style.color = 'var(--accent)';
+                    el.textContent = 'CSV is up to date';
+                }
+            })
+            .catch(() => { if (el) el.textContent = 'Check failed'; });
+    }
 </script>
+<!-- Settings overlay -->
+<div id="settings-overlay" onclick="closeSettings()"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;"></div>
+
+<!-- Settings drawer -->
+<div id="settings-drawer"
+     style="position:fixed;top:0;right:-340px;width:320px;height:100vh;
+            background:var(--bg-card);border-left:1px solid var(--border);
+            transition:right 0.25s ease;z-index:1000;overflow-y:auto;
+            padding:1.5rem;font-size:0.875rem;">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;
+                margin-bottom:1.5rem;">
+        <span style="font-weight:600;color:var(--text);">Settings</span>
+        <button onclick="closeSettings()"
+                style="background:none;border:none;cursor:pointer;
+                       color:var(--text-muted);font-size:1.2rem;">&times;</button>
+    </div>
+
+    <!-- Appearance -->
+    <div style="margin-bottom:1.5rem;">
+        <div style="color:var(--text-muted);font-size:0.75rem;letter-spacing:0.08em;
+                    text-transform:uppercase;margin-bottom:0.75rem;">Appearance</div>
+
+        <div style="margin-bottom:0.75rem;">
+            <label style="display:block;color:var(--text-muted);
+                          margin-bottom:0.25rem;font-size:0.8rem;">Theme</label>
+            <select id="s-theme" onchange="setSetting('theme',this.value)"
+                    style="width:100%;background:var(--bg-elevated);
+                           border:1px solid var(--border);border-radius:4px;
+                           color:var(--text);padding:0.4rem;font-family:inherit;">
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+                <option value="high-contrast">High Contrast</option>
+                <option value="auto">Auto (system)</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom:0.75rem;">
+            <label style="display:block;color:var(--text-muted);
+                          margin-bottom:0.25rem;font-size:0.8rem;">Font size</label>
+            <select id="s-font" onchange="setSetting('font-size',this.value)"
+                    style="width:100%;background:var(--bg-elevated);
+                           border:1px solid var(--border);border-radius:4px;
+                           color:var(--text);padding:0.4rem;font-family:inherit;">
+                <option value="small">Small (13px)</option>
+                <option value="medium">Medium (15px)</option>
+                <option value="large">Large (17px)</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom:0.75rem;">
+            <label style="display:block;color:var(--text-muted);
+                          margin-bottom:0.25rem;font-size:0.8rem;">Density</label>
+            <select id="s-density" onchange="setSetting('density',this.value)"
+                    style="width:100%;background:var(--bg-elevated);
+                           border:1px solid var(--border);border-radius:4px;
+                           color:var(--text);padding:0.4rem;font-family:inherit;">
+                <option value="comfortable">Comfortable</option>
+                <option value="compact">Compact</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Display -->
+    <div style="margin-bottom:1.5rem;">
+        <div style="color:var(--text-muted);font-size:0.75rem;letter-spacing:0.08em;
+                    text-transform:uppercase;margin-bottom:0.75rem;">Display</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text);font-size:0.85rem;">Progress log</span>
+            <label style="position:relative;display:inline-block;width:36px;height:20px;">
+                <input type="checkbox" id="s-log" onchange="setSetting('show-log',this.checked?'true':'false')"
+                       style="opacity:0;width:0;height:0;">
+                <span id="s-log-track"
+                      style="position:absolute;cursor:pointer;inset:0;
+                             background:var(--border);border-radius:20px;
+                             transition:0.2s;"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Ollama -->
+    <div style="margin-bottom:1.5rem;">
+        <div style="color:var(--text-muted);font-size:0.75rem;letter-spacing:0.08em;
+                    text-transform:uppercase;margin-bottom:0.75rem;">Ollama</div>
+
+        <div style="margin-bottom:0.75rem;">
+            <label style="display:block;color:var(--text-muted);
+                          margin-bottom:0.25rem;font-size:0.8rem;">Host</label>
+            <div style="display:flex;gap:0.4rem;">
+                <input id="s-ollama-host" type="text" placeholder="http://localhost:11434"
+                       style="flex:1;background:var(--bg-elevated);
+                              border:1px solid var(--border);border-radius:4px;
+                              color:var(--text);padding:0.4rem;font-family:inherit;
+                              font-size:0.8rem;">
+                <button onclick="testOllamaHost(false)"
+                        style="padding:0.4rem 0.6rem;background:var(--bg-elevated);
+                               border:1px solid var(--border);border-radius:4px;
+                               color:var(--text-muted);cursor:pointer;font-size:0.8rem;">
+                    Test
+                </button>
+                <button onclick="testOllamaHost(true)"
+                        style="padding:0.4rem 0.6rem;background:var(--accent-dark);
+                               border:1px solid var(--accent-border);border-radius:4px;
+                               color:var(--accent);cursor:pointer;font-size:0.8rem;">
+                    Save
+                </button>
+            </div>
+            <div id="s-ollama-host-status" style="font-size:0.78rem;margin-top:0.25rem;
+                                                   color:var(--text-muted);"></div>
+        </div>
+
+        <div style="margin-bottom:0.75rem;">
+            <label style="display:block;color:var(--text-muted);
+                          margin-bottom:0.25rem;font-size:0.8rem;">Model</label>
+            <select id="s-ollama-model" onchange="updateOllamaModel(this.value)"
+                    style="width:100%;background:var(--bg-elevated);
+                           border:1px solid var(--border);border-radius:4px;
+                           color:var(--text);padding:0.4rem;font-family:inherit;">
+                <option value="">Loading...</option>
+            </select>
+            <div id="s-ollama-model-status" style="font-size:0.78rem;margin-top:0.25rem;
+                                                    color:var(--text-muted);"></div>
+        </div>
+    </div>
+
+    <!-- CourtListener -->
+    <div style="margin-bottom:1.5rem;">
+        <div style="color:var(--text-muted);font-size:0.75rem;letter-spacing:0.08em;
+                    text-transform:uppercase;margin-bottom:0.75rem;">CourtListener</div>
+
+        <div style="margin-bottom:0.75rem;">
+            <label style="display:block;color:var(--text-muted);
+                          margin-bottom:0.25rem;font-size:0.8rem;">API Token</label>
+            <input id="s-cl-token" type="password" placeholder="Enter token"
+                   style="width:100%;background:var(--bg-elevated);
+                          border:1px solid var(--border);border-radius:4px;
+                          color:var(--text);padding:0.4rem;font-family:inherit;
+                          font-size:0.8rem;margin-bottom:0.4rem;">
+            <div style="display:flex;gap:0.4rem;">
+                <button onclick="verifyClToken(false)"
+                        style="flex:1;padding:0.4rem;background:var(--bg-elevated);
+                               border:1px solid var(--border);border-radius:4px;
+                               color:var(--text-muted);cursor:pointer;font-size:0.8rem;">
+                    Verify
+                </button>
+                <button onclick="verifyClToken(true)"
+                        style="flex:1;padding:0.4rem;background:var(--accent-dark);
+                               border:1px solid var(--accent-border);border-radius:4px;
+                               color:var(--accent);cursor:pointer;font-size:0.8rem;">
+                    Save
+                </button>
+            </div>
+            <div id="s-cl-status" style="font-size:0.78rem;margin-top:0.25rem;
+                                          color:var(--text-muted);"></div>
+        </div>
+    </div>
+
+    <!-- Data -->
+    <div style="margin-bottom:1.5rem;">
+        <div style="color:var(--text-muted);font-size:0.75rem;letter-spacing:0.08em;
+                    text-transform:uppercase;margin-bottom:0.75rem;">Data</div>
+        <div id="s-csv-info" style="color:var(--text-muted);font-size:0.8rem;
+                                     margin-bottom:0.5rem;">Loading...</div>
+        <button onclick="checkCsvUpdate()"
+                style="width:100%;padding:0.4rem;background:var(--bg-elevated);
+                       border:1px solid var(--border);border-radius:4px;
+                       color:var(--text-muted);cursor:pointer;font-size:0.8rem;">
+            Check for updates
+        </button>
+        <div id="s-csv-update" style="font-size:0.78rem;margin-top:0.25rem;"></div>
+    </div>
+
+</div>
 </body>
 </html>
