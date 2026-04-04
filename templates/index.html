@@ -499,11 +499,15 @@
 
     function renderPhase3(d) {
         const vc = verdictClass(d.verdict);
+        const backendLabel = d.backend_used === 'ollama' ? 'via Ollama'
+                           : d.backend_used === 'embeddings' ? 'via CL Embeddings'
+                           : '';
         let h = `<div class="phase-block">
             <div class="phase-header">
                 <span class="phase-label">Phase 3 -- Coherence</span>
                 <span class="verdict ${vc}">${d.verdict}</span>
                 ${d.confidence ? `<span class="confidence-tag">${d.confidence} confidence</span>` : ''}
+                ${backendLabel ? `<span class="confidence-tag">${backendLabel}</span>` : ''}
             </div>`;
         if (d.reasoning) h += `<div class="reasoning">${d.reasoning}</div>`;
         h += `</div>`;

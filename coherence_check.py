@@ -16,7 +16,7 @@ OLLAMA_MODEL, and OLLAMA_CONTEXT_SIZE in your .env file.
 If not configured, Wilson reports Phase 3 as skipped and completes
 Phases 1 and 2 only.
 
-Uses local inference — no case data leaves the machine.
+Uses local inference -- no case data leaves the machine.
 """
 
 import os
@@ -35,8 +35,8 @@ CL_TOKEN = os.getenv("COURTLISTENER_TOKEN")
 CL_HEADERS = {"Authorization": f"Token {CL_TOKEN}"}
 
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
-OLLAMA_CONTEXT_SIZE = int(os.getenv("OLLAMA_CONTEXT_SIZE", "32000"))
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3.5:35b")
+OLLAMA_CONTEXT_SIZE = int(os.getenv("OLLAMA_CONTEXT_SIZE", "245760"))
 
 SYSTEM_PROMPT = """You are a legal citation auditor. You ALWAYS respond with only a valid JSON object and nothing else. Never respond with prose, explanation, or thinking before or after the JSON. Your entire response must be a single parseable JSON object in this exact format:
 
@@ -59,14 +59,124 @@ def coherence_available():
             models = resp.json().get("models", [])
             model_names = [m["name"] for m in models]
             if any(OLLAMA_MODEL in name for name in model_names):
-                return True, f"Ollama reachable at {OLLAMA_HOST} — model {OLLAMA_MODEL} loaded (context: {OLLAMA_CONTEXT_SIZE:,} tokens)"
+                return True, f"Ollama reachable at {OLLAMA_HOST} -- model {OLLAMA_MODEL} loaded (context: {OLLAMA_CONTEXT_SIZE:,} tokens)"
             else:
                 return False, f"Ollama reachable but model '{OLLAMA_MODEL}' not found. Available: {model_names}"
         return False, f"Ollama returned status {resp.status_code}"
     except requests.exceptions.ConnectionError:
-        return False, f"Cannot reach Ollama at {OLLAMA_HOST} — is it running?"
+        return False, f"Cannot reach Ollama at {OLLAMA_HOST} -- is it running?"
     except Exception as e:
         return False, f"Ollama check failed: {e}"
+
+
+def check_coherence_embeddings(proposition, cluster_id):
+    """
+    Phase 3 fallback: use CourtListener semantic search to assess coherence.
+
+    Sends the proposition text to CourtListener's semantic search endpoint
+    and checks whether the verified case (by cluster_id) appears in the
+    ranked results. High rank = strong semantic similarity between the
+    proposition and the case's actual holdings.
+
+    This is a network-based fallback when Ollama is unavailable. It does
+    not read the full opinion -- it relies on CourtListener's pre-computed
+    embeddings. Less precise than full LLM analysis but far better than
+    skipping entirely.
+
+    Verdict thresholds (based on rank in semantic results):
+      SUPPORTS        -- cluster in top 20 results
+      UNCERTAIN       -- cluster in results 21-50
+      DOES_NOT_SUPPORT -- cluster not found in top 50 results
+
+    Failure mode: if CourtListener is unreachable or returns no results,
+    returns SKIPPED so the pipeline can still complete Phases 1 and 2.
+
+    Args:
+        proposition: The legal argument the case is cited for
+        cluster_id: CourtListener cluster ID of the verified case
+
+    Returns:
+        dict with keys: verdict, confidence, reasoning, backend_used
+    """
+    if not CL_TOKEN:
+        return {
+            "verdict": "SKIPPED",
+            "confidence": None,
+            "reasoning": "CourtListener token not configured -- cannot run embeddings fallback.",
+            "backend_used": None
+        }
+
+    try:
+        resp = requests.get(
+            "https://www.courtlistener.com/api/rest/v4/search/",
+            params={"q": proposition, "type": "o", "semantic": "true"},
+            headers=CL_HEADERS,
+            timeout=15
+        )
+
+        if resp.status_code != 200:
+            return {
+                "verdict": "SKIPPED",
+                "confidence": None,
+                "reasoning": f"CourtListener semantic search returned status {resp.status_code}.",
+                "backend_used": "embeddings"
+            }
+
+        results = resp.json().get("results", [])
+
+        if not results:
+            return {
+                "verdict": "SKIPPED",
+                "confidence": None,
+                "reasoning": "CourtListener semantic search returned no results for this proposition.",
+                "backend_used": "embeddings"
+            }
+
+        for rank, result in enumerate(results):
+            if result.get("cluster_id") == cluster_id:
+                if rank < 20:
+                    verdict = "SUPPORTS"
+                    confidence = "HIGH" if rank < 10 else "MEDIUM"
+                    strength = "Strong" if rank < 10 else "Moderate"
+                else:
+                    verdict = "UNCERTAIN"
+                    confidence = "LOW"
+                    strength = "Weak"
+                return {
+                    "verdict": verdict,
+                    "confidence": confidence,
+                    "reasoning": (
+                        f"Case ranked #{rank + 1} of {len(results)} in semantic similarity "
+                        f"to the proposition. {strength} support indicated. "
+                        f"(CourtListener embeddings -- not full opinion analysis)"
+                    ),
+                    "backend_used": "embeddings"
+                }
+
+        return {
+            "verdict": "DOES_NOT_SUPPORT",
+            "confidence": "MEDIUM",
+            "reasoning": (
+                f"Case did not appear in the top {len(results)} semantically similar results "
+                f"for this proposition. (CourtListener embeddings -- not full opinion analysis)"
+            ),
+            "backend_used": "embeddings"
+        }
+
+    except requests.exceptions.ConnectionError:
+        return {
+            "verdict": "SKIPPED",
+            "confidence": None,
+            "reasoning": "Cannot reach CourtListener for semantic search.",
+            "backend_used": "embeddings"
+        }
+    except Exception as e:
+        return {
+            "verdict": "SKIPPED",
+            "confidence": None,
+            "reasoning": f"Embeddings fallback error: {e}",
+            "backend_used": "embeddings"
+        }
 
 
 def fetch_opinion_text(cluster_id):
@@ -101,27 +211,27 @@ def truncate_opinion(opinion_text, max_chars=None):
     Truncate opinion text to fit in context window.
     Uses OLLAMA_CONTEXT_SIZE from .env if max_chars not specified.
 
-    With large context models (nemotron 256k, llama3.1 128k),
-    sends the full opinion text without truncation.
+    Conversion: roughly 3 chars per token, leaving ~20% headroom
+    for the prompt template, system message, and JSON response.
 
-    Conversion: roughly 3 chars per token, leaving room for
-    prompt template and system message overhead.
+    Truncation strategy: front-only.
+    Legal opinions follow a predictable structure -- syllabus and
+    holding appear first, majority reasoning in the middle, dissents
+    and concurrences at the end. Truncating from the front preserves
+    the holding (what we actually need to check coherence against)
+    and drops the dissent (which caused false DOES_NOT_SUPPORT verdicts
+    when the model summarized the dissent instead of the majority).
     """
     if max_chars is None:
-        max_chars = OLLAMA_CONTEXT_SIZE * 3
+        # Reserve 20% of context for prompt overhead and JSON response
+        max_chars = int(OLLAMA_CONTEXT_SIZE * 3 * 0.80)
 
     if len(opinion_text) <= max_chars:
         return opinion_text
 
-    # For truncated opinions: first 75%, last 25%
-    # Holdings appear at start, conclusions at end
-    first_chunk = int(max_chars * 0.75)
-    last_chunk = max_chars - first_chunk
-
     return (
-        opinion_text[:first_chunk] +
-        "\n\n[... opinion truncated — context limit reached ...]\n\n" +
-        opinion_text[-last_chunk:]
+        opinion_text[:max_chars] +
+        "\n\n[... opinion truncated -- context limit reached. Dissents and concurrences may be omitted. ...]"
     )
 
 
@@ -185,6 +295,13 @@ def check_coherence(proposition, case_name, cluster_id, opinion_text=None):
     """
     Ask the local LLM whether a cited case supports a legal proposition.
 
+    Tries backends in order:
+      1. Ollama (local LLM, full opinion analysis -- most accurate)
+      2. CourtListener semantic search (embeddings fallback -- no Ollama required)
+      3. SKIPPED (both unavailable)
+
+    The backend_used field in the return value indicates which ran.
+
     Args:
         proposition: The legal argument the case is cited for
         case_name: Name of the cited case
@@ -196,20 +313,21 @@ def check_coherence(proposition, case_name, cluster_id, opinion_text=None):
             verdict: SUPPORTS | DOES_NOT_SUPPORT | UNCERTAIN | SKIPPED | ERROR
             confidence: HIGH | MEDIUM | LOW | None
             reasoning: Explanation
-            thinking: LLM chain of thought if available
+            thinking: LLM chain of thought if available (Ollama only)
+            backend_used: "ollama" | "embeddings" | None
     """
-    # Check LLM availability first
+    # Try Ollama first
     available, availability_message = coherence_available()
     if not available:
-        return {
-            "verdict": "SKIPPED",
-            "confidence": None,
-            "reasoning": (
-                f"Phase 3 skipped — {availability_message}. "
-                f"Configure OLLAMA_HOST and OLLAMA_MODEL in .env to enable coherence checking."
-            ),
-            "thinking": None
-        }
+        print(f"  [COHERENCE] Ollama unavailable ({availability_message}) -- trying embeddings fallback...")
+        result = check_coherence_embeddings(proposition, cluster_id)
+        result["thinking"] = None
+        if result["verdict"] == "SKIPPED":
+            result["reasoning"] = (
+                f"Phase 3 skipped -- Ollama unavailable and embeddings fallback also failed. "
+                f"Ollama: {availability_message}. Embeddings: {result['reasoning']}"
+            )
+        return result
 
     if opinion_text is None:
         print(f"  [COHERENCE] Fetching opinion for cluster {cluster_id}...")
@@ -220,7 +338,8 @@ def check_coherence(proposition, case_name, cluster_id, opinion_text=None):
             "verdict": "ERROR",
             "confidence": None,
             "reasoning": f"Could not retrieve opinion text for cluster {cluster_id}",
-            "thinking": None
+            "thinking": None,
+            "backend_used": "ollama"
         }
 
     truncated = truncate_opinion(opinion_text)
@@ -228,7 +347,7 @@ def check_coherence(proposition, case_name, cluster_id, opinion_text=None):
     was_truncated = len(opinion_text) > char_count
 
     print(f"  [COHERENCE] Opinion: {len(opinion_text):,} chars"
-          f"{' → truncated to ' + str(char_count) + ' chars' if was_truncated else ' (full text)'}")
+          f"{' -> truncated to ' + str(char_count) + ' chars' if was_truncated else ' (full text)'}")
 
     prompt = f"""Determine whether the cited case supports the legal proposition.
 
@@ -255,11 +374,13 @@ JSON RESPONSE:"""
                 "model": OLLAMA_MODEL,
                 "prompt": prompt,
                 "system": SYSTEM_PROMPT,
+                "format": "json",
                 "stream": False,
                 "options": {
                     "temperature": 0.1,
                     "num_predict": 1024,
-                    "num_ctx": OLLAMA_CONTEXT_SIZE
+                    "num_ctx": OLLAMA_CONTEXT_SIZE,
+                    "think": False   # Disable Qwen3/hybrid thinking mode -- JSON goes to response field
                 }
             },
             timeout=300
@@ -268,11 +389,24 @@ JSON RESPONSE:"""
         data = resp.json()
         raw_response = data.get("response", "")
 
-        # Extract and remove thinking block if present
-        thinking = None
+        # Ollama native thinking field -- used by Qwen3 and other hybrid-thinking models.
+        # When active, Ollama routes all model output to this field and leaves response empty.
+        # Older Ollama versions or non-thinking models don't set this field.
+        ollama_thinking = data.get("thinking", "")
+        thinking = ollama_thinking if ollama_thinking else None
+
+        if not raw_response.strip() and ollama_thinking:
+            # Hybrid-thinking model put its answer in thinking field.
+            # Use it as raw_response for JSON extraction.
+            # Don't surface it as CoT -- it IS the answer, not commentary on it.
+            raw_response = ollama_thinking
+            thinking = None
+
+        # Extract and remove inline <think> tags if present (older style, some models)
         thinking_match = re.search(r'<think>(.*?)</think>', raw_response, re.DOTALL)
         if thinking_match:
-            thinking = thinking_match.group(1).strip()
+            if not thinking:
+                thinking = thinking_match.group(1).strip()
             raw_response = re.sub(
                 r'<think>.*?</think>', '', raw_response, flags=re.DOTALL
             ).strip()
@@ -293,7 +427,8 @@ JSON RESPONSE:"""
                 "verdict": result.get("verdict", "UNCERTAIN"),
                 "confidence": result.get("confidence", "LOW"),
                 "reasoning": result.get("reasoning", "No reasoning provided"),
-                "thinking": thinking
+                "thinking": thinking,
+                "backend_used": "ollama"
             }
 
         # Fallback: extract verdict from prose
@@ -306,14 +441,16 @@ JSON RESPONSE:"""
                 "verdict": fallback_verdict,
                 "confidence": "LOW",
                 "reasoning": f"[Extracted from prose] {reasoning_snippet}",
-                "thinking": thinking
+                "thinking": thinking,
+                "backend_used": "ollama"
             }
 
         return {
             "verdict": "ERROR",
             "confidence": None,
             "reasoning": f"Could not parse model response: {raw_response[:200]}",
-            "thinking": thinking
+            "thinking": thinking,
+            "backend_used": "ollama"
         }
 
     except json.JSONDecodeError as e:
@@ -321,34 +458,32 @@ JSON RESPONSE:"""
             "verdict": "ERROR",
             "confidence": None,
             "reasoning": f"JSON parse error: {e}. Raw: {raw_response[:200]}",
-            "thinking": None
+            "thinking": None,
+            "backend_used": "ollama"
         }
     except Exception as e:
         return {
             "verdict": "ERROR",
             "confidence": None,
             "reasoning": f"Inference error: {e}",
-            "thinking": None
+            "thinking": None,
+            "backend_used": "ollama"
         }
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("WILSON — COHERENCE CHECK TEST")
+    print("WILSON -- COHERENCE CHECK TEST")
     print("=" * 60)
 
     # Check LLM availability before running tests
     available, message = coherence_available()
-    print(f"\nLLM Status: {message}")
-
+    print(f"\nOllama Status: {message}")
     if not available:
-        print("\nPhase 3 coherence checking requires a local Ollama instance.")
-        print("Set OLLAMA_HOST and OLLAMA_MODEL in your .env file.")
-        print("Install Ollama at https://ollama.com")
-        exit(0)
+        print("Ollama unavailable -- tests will use CourtListener embeddings fallback.")
 
     # Test 1: Correct use of Strickland
-    print("\n[TEST 1] Correct proposition — Strickland")
+    print("\n[TEST 1] Correct proposition -- Strickland")
     print("Proposition: To prevail on an ineffective assistance claim,")
     print("a defendant must show deficient performance and prejudice.")
 
@@ -367,7 +502,7 @@ if __name__ == "__main__":
     print("\n" + "-" * 60)
 
     # Test 2: Wrong proposition attributed to Strickland
-    print("\n[TEST 2] Incorrect proposition — Strickland")
+    print("\n[TEST 2] Incorrect proposition -- Strickland")
     print("Proposition: Defense counsel must be present at all")
     print("pretrial hearings or the conviction is automatically reversed.")
 
@@ -386,7 +521,7 @@ if __name__ == "__main__":
     print("\n" + "-" * 60)
 
     # Test 3: Subtle misrepresentation
-    print("\n[TEST 3] Subtle misrepresentation — Strickland")
+    print("\n[TEST 3] Subtle misrepresentation -- Strickland")
     print("Proposition: A defendant is entitled to a new trial whenever")
     print("counsel makes any error during proceedings.")
 

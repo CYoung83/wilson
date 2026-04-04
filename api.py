@@ -365,7 +365,8 @@ async def run_pipeline(
         yield make_event("phase3_complete", data={
             "verdict": result.get("verdict", "ERROR"),
             "confidence": result.get("confidence"),
-            "reasoning": result.get("reasoning", "")
+            "reasoning": result.get("reasoning", ""),
+            "backend_used": result.get("backend_used")
         })
         await asyncio.sleep(0)
 
