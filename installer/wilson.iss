@@ -65,7 +65,7 @@ Source: "..\smoke_test.py";           DestDir: "{app}"; Flags: ignoreversion; Co
 Source: "..\test_mata_avianca.py";    DestDir: "{app}"; Flags: ignoreversion; Components: core
 Source: "..\charlotin_processor.py";  DestDir: "{app}"; Flags: ignoreversion; Components: core
 Source: "..\requirements.txt";        DestDir: "{app}"; Flags: ignoreversion; Components: core
-Source: "..\env.example";             DestDir: "{app}"; DestName: ".env.example"; Flags: ignoreversion; Components: core
+Source: "..\.env.example";            DestDir: "{app}"; DestName: ".env.example"; Flags: ignoreversion; Components: core
 Source: "..\README.md";               DestDir: "{app}"; Flags: ignoreversion isreadme; Components: core
 Source: "..\LICENSE";                 DestDir: "{app}"; Flags: ignoreversion; Components: core
 Source: "..\CLAUDE.md";               DestDir: "{app}"; Flags: ignoreversion; Components: core
