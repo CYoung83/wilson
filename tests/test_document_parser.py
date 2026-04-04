@@ -6,7 +6,7 @@ and proposition suggestion (mocked Ollama).
 """
 
 import pytest
-from document_parser import extract_text
+from document_parser import extract_text, extract_citations_with_context
 
 
 # ---------------------------------------------------------------------------
@@ -151,3 +151,64 @@ def test_extract_text_pdf_corrupted():
     """Corrupted PDF bytes raise RuntimeError with plain-English message."""
     with pytest.raises(RuntimeError, match="Could not read PDF file"):
         extract_text(b"not a pdf at all", "broken.pdf")
+
+
+# ---------------------------------------------------------------------------
+# Citation extraction with context
+# ---------------------------------------------------------------------------
+
+
+def test_extract_citations_basic():
+    """Citations are extracted with surrounding context snippet."""
+    text = (
+        "The court held that defendants have rights. "
+        "Miranda v. Arizona, 384 U.S. 436 (1966) established the right to counsel. "
+        "This changed American law forever."
+    )
+    page_boundaries = [0]
+    results = extract_citations_with_context(text, page_boundaries)
+    assert len(results) == 1
+    assert "384 U.S. 436" in results[0]["citation_text"]
+    assert "Miranda" in results[0]["context_snippet"]
+    assert results[0]["char_offset"] >= 0
+    assert results[0]["page_number"] == 1
+
+
+def test_extract_citations_multiple():
+    """Multiple citations are returned in document order."""
+    text = (
+        "Miranda v. Arizona, 384 U.S. 436 (1966) first. "
+        "Later, Strickland v. Washington, 466 U.S. 668 (1984) applied."
+    )
+    results = extract_citations_with_context(text, [0])
+    assert len(results) == 2
+    assert results[0]["char_offset"] < results[1]["char_offset"]
+
+
+def test_extract_citations_empty_text():
+    """Text with no citations returns empty list."""
+    results = extract_citations_with_context("No citations here.", [0])
+    assert results == []
+
+
+def test_extract_citations_page_number_assigned():
+    """Citations on page 2 get page_number 2."""
+    page1 = "x" * 1000
+    page2_citation = " Miranda v. Arizona, 384 U.S. 436 (1966) held this."
+    text = page1 + page2_citation
+    page_boundaries = [0, 1000]
+    results = extract_citations_with_context(text, page_boundaries)
+    assert len(results) == 1
+    assert results[0]["page_number"] == 2
+
+
+def test_extract_citations_context_window():
+    """Context snippet includes sentence before and after the citation."""
+    text = (
+        "First sentence before. "
+        "Miranda v. Arizona, 384 U.S. 436 (1966) is the citation. "
+        "Last sentence after."
+    )
+    results = extract_citations_with_context(text, [0])
+    snippet = results[0]["context_snippet"]
+    assert "First sentence before" in snippet or "Last sentence after" in snippet
