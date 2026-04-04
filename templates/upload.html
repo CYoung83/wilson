@@ -56,8 +56,8 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
-            background: #0a0a0a;
-            color: #e0e0e0;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
             padding: 1.5rem;
         }
@@ -86,7 +86,7 @@
         }
 
         .form-panel {
-            background: #111;
+            background: var(--bg-card);
             border: 1px solid #1e1e1e;
             border-radius: 8px;
             padding: 1.25rem;
@@ -104,7 +104,7 @@
         label {
             display: block;
             font-size: 0.8rem;
-            color: #888;
+            color: var(--text-muted);
             margin-bottom: 0.3rem;
             margin-top: 0.85rem;
         }
@@ -115,10 +115,10 @@
 
         input[type="file"] {
             width: 100%;
-            background: #0a0a0a;
+            background: var(--bg);
             border: 2px dashed #252525;
             border-radius: 4px;
-            color: #888;
+            color: var(--text-muted);
             padding: 1.5rem;
             font-size: 0.86rem;
             font-family: inherit;
@@ -133,7 +133,7 @@
         input[type="file"]:focus {
             outline: none;
             border-color: #4caf50;
-            color: #e0e0e0;
+            color: var(--text);
         }
 
         .btn-row {
@@ -145,8 +145,8 @@
         button {
             flex: 1;
             padding: 0.65rem;
-            background: #161616;
-            border: 1px solid #252525;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
             border-radius: 5px;
             color: #ccc;
             font-size: 0.86rem;
@@ -160,7 +160,7 @@
         button:disabled { opacity: 0.3; cursor: not-allowed; }
 
         .btn-secondary {
-            background: #0a0a0a;
+            background: var(--bg);
             border-color: #333;
         }
 
@@ -235,7 +235,7 @@
             align-items: flex-start;
             gap: 0.75rem;
             padding: 1rem;
-            background: #0a0a0a;
+            background: var(--bg);
             border: 1px solid #1e1e1e;
             border-radius: 6px;
             margin-bottom: 0.75rem;
@@ -266,7 +266,7 @@
         .depth-title {
             font-size: 0.85rem;
             font-weight: 600;
-            color: #e0e0e0;
+            color: var(--text);
             margin-bottom: 0.25rem;
         }
 
@@ -301,7 +301,7 @@
 
         .queue-tally {
             font-size: 0.8rem;
-            color: #888;
+            color: var(--text-muted);
         }
 
         .queue-tally strong {
@@ -309,7 +309,7 @@
         }
 
         .citation-row {
-            background: #0a0a0a;
+            background: var(--bg);
             border: 1px solid #1e1e1e;
             border-radius: 6px;
             padding: 1rem;
@@ -326,7 +326,7 @@
         .citation-text {
             font-weight: 600;
             font-size: 0.85rem;
-            color: #e0e0e0;
+            color: var(--text);
             flex: 1;
         }
 
@@ -342,8 +342,8 @@
 
         .status-badge.pending {
             border-color: #4a4a4a;
-            background: #161616;
-            color: #888;
+            background: var(--bg-elevated);
+            color: var(--text-muted);
         }
 
         .status-badge.accepted {
@@ -360,7 +360,7 @@
 
         .status-badge.skipped {
             border-color: #3a3a3a;
-            background: #111;
+            background: var(--bg-card);
             color: #666;
         }
 
@@ -381,13 +381,13 @@
         }
 
         .context-snippet {
-            background: #111;
+            background: var(--bg-card);
             border: 1px solid #1e1e1e;
             border-radius: 4px;
             padding: 0.75rem;
             margin: 0.5rem 0;
             font-size: 0.75rem;
-            color: #888;
+            color: var(--text-muted);
             line-height: 1.5;
             display: none;
             font-family: monospace;
@@ -401,10 +401,10 @@
 
         .proposition-input {
             width: 100%;
-            background: #0a0a0a;
-            border: 1px solid #252525;
+            background: var(--bg);
+            border: 1px solid var(--border);
             border-radius: 4px;
-            color: #e0e0e0;
+            color: var(--text);
             padding: 0.55rem 0.7rem;
             font-size: 0.8rem;
             font-family: inherit;
@@ -432,8 +432,8 @@
         .queue-btn {
             flex: 1;
             padding: 0.5rem;
-            background: #161616;
-            border: 1px solid #252525;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
             border-radius: 4px;
             color: #ccc;
             font-size: 0.75rem;
@@ -491,9 +491,9 @@
         .queue-btn-back {
             flex: 0 0 auto;
             padding: 0.65rem 1rem;
-            background: #0a0a0a;
-            border: 1px solid #333;
-            color: #888;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
         }
 
         .queue-btn-back:hover {
@@ -513,7 +513,7 @@
 
         .progress-track {
             height: 6px;
-            background: #161616;
+            background: var(--bg-elevated);
             border-radius: 3px;
             overflow: hidden;
             margin-bottom: 0.5rem;
@@ -562,19 +562,19 @@
         }
 
         .status-line {
-            background: #0a0a0a;
+            background: var(--bg);
             border: 1px solid #1e1e1e;
             border-radius: 6px;
             padding: 0.75rem;
             margin-bottom: 0.5rem;
             font-size: 0.75rem;
-            color: #888;
+            color: var(--text-muted);
             line-height: 1.5;
         }
 
         .status-line.verdict {
             border-color: #4a4a4a;
-            color: #e0e0e0;
+            color: var(--text);
             font-size: 0.7rem;
             padding: 0.5rem 0.75rem;
         }
@@ -582,7 +582,7 @@
         .status-line.verdict.green { border-color: #1a4a1a; background: #0d2a0d; }
         .status-line.verdict.red { border-color: #4a1a1a; background: #2a0d0d; }
         .status-line.verdict.orange { border-color: #4a3a1a; background: #2a1f0d; }
-        .status-line.verdict.grey { border-color: #222; background: #111; }
+        .status-line.verdict.grey { border-color: #222; background: var(--bg-card); }
 
         .batch-status {
             margin-bottom: 1rem;
@@ -650,7 +650,7 @@
         .summary-table th {
             text-align: left;
             padding: 0.5rem 0.75rem;
-            color: #888;
+            color: var(--text-muted);
             font-weight: 600;
             border-bottom: 1px solid #1e1e1e;
         }
@@ -663,7 +663,7 @@
 
         .summary-table .citation-cell {
             font-weight: 600;
-            color: #e0e0e0;
+            color: var(--text);
         }
 
         .summary-table .verdict-cell {
@@ -685,7 +685,7 @@
         }
 
         .summary-row-details {
-            background: #0a0a0a;
+            background: var(--bg);
             border-radius: 4px;
             padding: 0.75rem;
             margin-top: 0.5rem;
@@ -698,7 +698,7 @@
 
         .reasoning {
             font-size: 0.7rem;
-            color: #888;
+            color: var(--text-muted);
             line-height: 1.5;
             margin-bottom: 0.5rem;
         }
@@ -717,7 +717,7 @@
             color: #444;
             margin-top: 1.5rem;
             padding: 1rem;
-            background: #0a0a0a;
+            background: var(--bg);
             border: 1px solid #1e1e1e;
             border-radius: 6px;
         }
@@ -956,7 +956,7 @@
 
     <script>
         // ── Settings: apply before render to prevent flash ────────────────────────
-        (function applySettings() {
+        function applySettings() {
             const theme = localStorage.getItem('wilson-theme') || 'dark';
             const fontSize = localStorage.getItem('wilson-font-size') || 'medium';
             const density = localStorage.getItem('wilson-density') || 'comfortable';
@@ -968,7 +968,7 @@
             document.documentElement.style.setProperty('--spacing',
                 density === 'compact' ? '0.5rem' : '1rem'
             );
-        })();
+        }
 
         // ── Settings drawer ─────────────────────────────────────────────────
         function openSettings() {
