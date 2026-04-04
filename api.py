@@ -33,10 +33,25 @@ from coherence_check import check_coherence, coherence_available
 
 load_dotenv()
 
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Run startup tasks: pre-load CSV, check for updates."""
+    # Pre-load CSV into memory on startup (not on first request)
+    if os.path.exists(CITATIONS_CSV):
+        print("Pre-loading citations CSV into memory...")
+        get_citations_df()
+        # Check for CSV updates in background (non-blocking)
+        import asyncio
+        asyncio.get_event_loop().run_in_executor(None, check_csv_update_available)
+    yield
+
 CL_TOKEN = os.getenv("COURTLISTENER_TOKEN")
 CL_HEADERS = {"Authorization": f"Token {CL_TOKEN}"}
 CITATIONS_CSV = os.getenv("CITATIONS_CSV", "data/citations-2026-03-31.csv")
 CASE_NAME_MATCH_THRESHOLD = 75
+FALLBACK_CONFIDENCE_THRESHOLD = 60
 MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50MB in bytes
 
 # ------------------------------------------------------------------------------
@@ -54,10 +69,98 @@ def get_citations_df():
     return _citations_df
 
 
+# CSV update check -- populated at startup, checked by /health endpoint
+CSV_UPDATE_AVAILABLE = False
+CSV_LATEST_FILENAME = None
+
+
+def parse_csv_date(csv_path: Optional[str]):
+    """
+    Extract the date from a CourtListener bulk CSV filename.
+
+    CourtListener names bulk files as citations-YYYY-MM-DD.csv.
+    Returns a datetime.date object or None if no date found.
+
+    Args:
+        csv_path: Full path or filename of the CSV file
+
+    Returns:
+        datetime.date if parseable, None otherwise
+    """
+    if not csv_path:
+        return None
+    import re
+    from datetime import date
+    filename = os.path.basename(csv_path)
+    match = re.search(r"citations-(\d{4})-(\d{2})-(\d{2})", filename)
+    if not match:
+        return None
+    try:
+        return date(int(match.group(1)), int(match.group(2)), int(match.group(3)))
+    except ValueError:
+        return None
+
+
+def check_csv_update_available() -> bool:
+    """
+    Check CourtListener S3 for bulk citation CSV files newer than the current one.
+
+    Queries the public S3 bucket listing for files matching the citations-*.csv.bz2
+    pattern and compares dates against the current CSV filename.
+
+    Returns True if a newer file is found, False otherwise (including on errors).
+    Errors are logged but never raised -- update check is informational only.
+    """
+    global CSV_UPDATE_AVAILABLE, CSV_LATEST_FILENAME
+
+    current_date = parse_csv_date(CITATIONS_CSV)
+    if not current_date:
+        return False
+
+    try:
+        import xml.etree.ElementTree as ET
+        resp = http_requests.get(
+            "https://com-courtlistener-storage.s3-us-west-2.amazonaws.com/",
+            params={"prefix": "bulk-data/citations-", "delimiter": "/"},
+            timeout=10
+        )
+        if resp.status_code != 200:
+            return False
+
+        root = ET.fromstring(resp.text)
+        ns = {"s3": "http://s3.amazonaws.com/doc/2006-03-01/"}
+        keys = [
+            el.text for el in root.findall(".//s3:Key", ns)
+            if el.text and el.text.endswith(".csv.bz2")
+        ]
+
+        latest = None
+        latest_key = None
+        for key in keys:
+            d = parse_csv_date(key)
+            if d and (latest is None or d > latest):
+                latest = d
+                latest_key = key
+
+        if latest and latest > current_date:
+            CSV_UPDATE_AVAILABLE = True
+            CSV_LATEST_FILENAME = latest_key.split("/")[-1] if latest_key else None
+            print(f"CSV update available: {CSV_LATEST_FILENAME}")
+            return True
+
+        CSV_UPDATE_AVAILABLE = False
+        return False
+
+    except Exception as e:
+        print(f"CSV update check failed: {e}")
+        return False
+
+
 app = FastAPI(
     title="Wilson",
     description="AI Reasoning Auditor -- Open-source legal citation verification",
-    version="0.0.5",
+    version="0.1.0",
+    lifespan=lifespan,
 )
 
 templates = Jinja2Templates(directory="templates")
@@ -117,6 +220,34 @@ def lookup_citation_api(text: str):
         return True, cluster_id, case_name, f"Found -- {case_name} (cluster {cluster_id})"
     except Exception as e:
         return None, None, None, f"API error: {e}"
+
+
+def fetch_cluster_blocked(cluster_id: int) -> bool:
+    """
+    Check whether a CourtListener cluster has been flagged for privacy protection.
+
+    CourtListener allows individuals to request de-indexing of their cases.
+    When blocked=True, Wilson skips Phase 2 and Phase 3 out of respect for
+    that privacy request. On any API error, returns False (do not block on
+    uncertainty -- better to over-verify than under-verify).
+
+    Args:
+        cluster_id: CourtListener cluster ID from Phase 1 verification
+
+    Returns:
+        True if the cluster is privacy-protected, False otherwise
+    """
+    try:
+        resp = http_requests.get(
+            f"https://www.courtlistener.com/api/rest/v4/clusters/{cluster_id}/",
+            headers=CL_HEADERS,
+            timeout=5
+        )
+        if resp.status_code == 200:
+            return bool(resp.json().get("blocked", False))
+        return False
+    except Exception:
+        return False
 
 
 def lookup_by_name(case_name: str):
@@ -225,6 +356,30 @@ async def run_pipeline(
         fb_found, _, fb_case_name, fb_full_citation, fb_message = lookup_by_name(citation_text)
 
         if fb_found and fb_full_citation:
+            # Check confidence before proceeding -- low similarity means
+            # Wilson may have found the wrong case
+            from rapidfuzz import fuzz as _fuzz
+            fallback_similarity = _fuzz.partial_ratio(
+                citation_text.lower(),
+                (fb_case_name or "").lower()
+            )
+            if fallback_similarity < FALLBACK_CONFIDENCE_THRESHOLD:
+                yield make_event("suggestion", data={
+                    "user_input": citation_text,
+                    "suggested_citation": fb_full_citation,
+                    "suggested_name": fb_case_name,
+                    "similarity": round(fallback_similarity),
+                    "message": (
+                        f"Wilson found a case that may match: {fb_case_name} "
+                        f"({fb_full_citation}). Similarity to your input: "
+                        f"{round(fallback_similarity)}%. "
+                        f"Please verify this is the correct case before proceeding."
+                    )
+                })
+                yield make_event("done", duration=round(time.time() - start_time, 2))
+                return
+
+            # Similarity acceptable -- proceed with fallback citation
             citations = get_citations(fb_full_citation)
             used_fallback = True
             fallback_citation = fb_full_citation
@@ -337,9 +492,32 @@ async def run_pipeline(
         "match_pct": match_pct,
         "api_found": True,
         "local_csv": csv_stat,
+        "privacy_protected": False,
         "message": f"Citation verified -- {actual_case_name} ({match_pct}% name match)"
     })
     await asyncio.sleep(0)
+
+    # After phase1_complete yields EXISTS -- check privacy protection before Phase 2/3
+    if cluster_id:
+        is_blocked = fetch_cluster_blocked(cluster_id)
+        if is_blocked:
+            yield make_event("phase1_complete", data={
+                "verdict": "EXISTS",
+                "cluster_id": cluster_id,
+                "case_name": actual_case_name,
+                "cited_name": cited_name,
+                "match_pct": match_pct,
+                "api_found": True,
+                "local_csv": csv_stat,
+                "privacy_protected": True,
+                "message": (
+                    f"Citation verified -- {actual_case_name} ({match_pct}% name match). "
+                    f"This opinion has been flagged for privacy protection. "
+                    f"Quote verification and coherence checking are not available."
+                )
+            })
+            yield make_event("done", duration=round(time.time() - start_time, 2))
+            return
 
     # Phase 2: Quote verification
     if quoted_text and cluster_id:
@@ -402,6 +580,8 @@ async def index(request: Request):
             "llm_available": available,
             "llm_message": llm_message,
             "csv_available": os.path.exists(CITATIONS_CSV),
+            "csv_update_available": CSV_UPDATE_AVAILABLE,
+            "csv_latest_filename": CSV_LATEST_FILENAME,
         }
     )
 
@@ -445,6 +625,10 @@ async def health():
                 "description": "Coherence checking via local LLM",
                 "message": llm_message
             }
+        },
+        "csv_update": {
+            "available": CSV_UPDATE_AVAILABLE,
+            "latest_filename": CSV_LATEST_FILENAME
         }
     }
 

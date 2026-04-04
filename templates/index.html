@@ -343,7 +343,13 @@
             <span class="status-pill off" title="{{ llm_message }}">Phase 3 -- Offline</span>
         {% endif %}
         {% if csv_available %}
-            <span class="status-pill ok">Offline CSV -- 18M Records</span>
+            {% if csv_update_available %}
+                <span class="status-pill warn" title="Update available: {{ csv_latest_filename }}. Re-run setup to update.">
+                    Offline CSV -- Update Available
+                </span>
+            {% else %}
+                <span class="status-pill ok">Offline CSV -- 18M Records</span>
+            {% endif %}
         {% else %}
             <span class="status-pill warn">Offline CSV -- Not Configured</span>
         {% endif %}
@@ -479,6 +485,12 @@
         if (d.local_csv)  h += detail('Local CSV', d.local_csv);
         h += `</div>`;
         if (d.message) h += `<div class="reasoning">${d.message}</div>`;
+        if (d.privacy_protected) {
+            h += `<div class="reasoning" style="border-left-color: #4a3a1a; color: #ff9800;">
+                This opinion has been flagged for privacy protection.
+                Quote verification and coherence checking are not available for this citation.
+            </div>`;
+        }
         h += `</div>`;
         return h;
     }
@@ -637,6 +649,31 @@
                         setProgress(100, false);
                         results.innerHTML += `<div class="error-block">${e.message}</div>`;
                         scrollToResults();
+                    }
+
+                    else if (t === 'suggestion') {
+                        setProgress(100, false);
+                        stopTimer(e.duration);
+                        results.innerHTML += `<div class="phase-block" style="border-color: #4a3a1a;">
+                            <div class="phase-header">
+                                <span class="phase-label">Name Lookup -- Low Confidence</span>
+                                <span class="verdict v-orange">DID YOU MEAN?</span>
+                            </div>
+                            <div class="reasoning">
+                                ${e.data.message}
+                            </div>
+                            <div style="margin-top: 0.75rem; display: flex; gap: 0.5rem;">
+                                <button onclick="document.getElementById('citation').value = '${e.data.suggested_citation}'; resetForm(); document.getElementById('citation').value = '${e.data.suggested_citation}';"
+                                    style="flex: 1; padding: 0.5rem; background: #0d2a0d; border: 1px solid #1a4a1a; border-radius: 4px; color: #4caf50; cursor: pointer; font-family: inherit; font-size: 0.82rem;">
+                                    Use "${e.data.suggested_citation}"
+                                </button>
+                                <button onclick="resetForm();"
+                                    style="flex: 0 0 auto; padding: 0.5rem 1rem; background: #161616; border: 1px solid #252525; border-radius: 4px; color: #888; cursor: pointer; font-family: inherit; font-size: 0.82rem;">
+                                    Start over
+                                </button>
+                            </div>
+                        </div>`;
+                        document.getElementById('results-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
 
                     else if (t === 'done') {
