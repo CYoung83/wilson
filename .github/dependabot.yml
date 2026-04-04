@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    ignore:
+      # eyecite updates can break citation parsing -- review manually
+      - dependency-name: "eyecite"
+        update-types: ["version-update:semver-major"]
+      # pandas major versions require migration testing
+      - dependency-name: "pandas"
+        update-types: ["version-update:semver-major"]
