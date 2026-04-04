@@ -24,7 +24,7 @@ huggingface_hub
 
 # API and web interface
 fastapi==0.135.3
-uvicorn==0.42.0
+uvicorn==0.43.0
 jinja2==3.1.6
 sse-starlette==3.3.4
 
