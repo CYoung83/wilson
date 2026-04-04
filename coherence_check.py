@@ -22,6 +22,7 @@ Uses local inference -- no case data leaves the machine.
 import os
 import re
 import json
+import logging
 import requests
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 import warnings
@@ -30,6 +31,8 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 CL_TOKEN = os.getenv("COURTLISTENER_TOKEN")
 CL_HEADERS = {"Authorization": f"Token {CL_TOKEN}"}
@@ -65,8 +68,10 @@ def coherence_available():
         return False, f"Ollama returned status {resp.status_code}"
     except requests.exceptions.ConnectionError:
         return False, f"Cannot reach Ollama at {OLLAMA_HOST} -- is it running?"
-    except Exception as e:
-        return False, f"Ollama check failed: {e}"
+    except Exception:
+        # Log full exception details server-side without exposing them to clients
+        logger.exception("Unexpected error while checking Ollama availability")
+        return False, "Ollama check failed due to an internal error."
 
 
 def check_coherence_embeddings(proposition, cluster_id):
