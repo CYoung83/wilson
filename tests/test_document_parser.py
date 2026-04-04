@@ -53,3 +53,48 @@ def test_extract_text_txt_page_boundaries_estimated():
     result = extract_text(content.encode("utf-8"), "long.txt")
     assert result["page_count"] == 3
     assert result["page_boundaries"] == [0, 3000, 6000]
+
+
+# ---------------------------------------------------------------------------
+# DOCX extraction
+# ---------------------------------------------------------------------------
+
+
+def _make_docx_bytes(paragraphs: list) -> bytes:
+    """Helper: create a minimal in-memory DOCX with given paragraph strings."""
+    import io
+    from docx import Document
+    doc = Document()
+    for para in paragraphs:
+        doc.add_paragraph(para)
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
+def test_extract_text_docx_basic():
+    """DOCX body paragraphs are extracted into text."""
+    content = [
+        "Miranda v. Arizona, 384 U.S. 436 (1966) established the right to counsel.",
+        "Strickland v. Washington, 466 U.S. 668 (1984) governs ineffective assistance."
+    ]
+    docx_bytes = _make_docx_bytes(content)
+    result = extract_text(docx_bytes, "brief.docx")
+    assert "Miranda v. Arizona" in result["text"]
+    assert "Strickland v. Washington" in result["text"]
+    assert result["extraction_method"] == "docx"
+    assert result["page_count"] >= 1
+
+
+def test_extract_text_docx_empty():
+    """Empty DOCX returns empty text and page_count of 1."""
+    docx_bytes = _make_docx_bytes([])
+    result = extract_text(docx_bytes, "empty.docx")
+    assert result["text"] == ""
+    assert result["page_count"] == 1
+
+
+def test_extract_text_docx_corrupted():
+    """Corrupted DOCX bytes raise RuntimeError with plain-English message."""
+    with pytest.raises(RuntimeError, match="Could not read DOCX file"):
+        extract_text(b"this is not a docx", "broken.docx")
