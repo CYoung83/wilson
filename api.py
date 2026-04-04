@@ -20,7 +20,7 @@ import pandas as pd
 from typing import Optional, AsyncGenerator
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request, UploadFile, File
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -691,6 +691,18 @@ async def health():
             "latest_filename": CSV_LATEST_FILENAME
         }
     }
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    """Serve the Wilson favicon from the installer directory."""
+    import pathlib
+    ico_path = pathlib.Path(__file__).parent / "installer" / "wilson_icon.ico"
+    if ico_path.exists():
+        return FileResponse(str(ico_path), media_type="image/x-icon")
+    # Fallback: return empty 204 response if icon not found
+    from fastapi.responses import Response
+    return Response(status_code=204)
 
 
 @app.get("/settings/ollama-models")
