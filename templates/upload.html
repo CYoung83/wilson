@@ -153,6 +153,17 @@
             display: none;
         }
 
+        .banner {
+            background: #1a0a1a;
+            border: 1px solid #3a1515;
+            border-radius: 6px;
+            padding: 0.75rem;
+            color: #ff6666;
+            font-size: 0.8rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
         /* Step 2 - Depth Selector */
         .step-section {
             display: none;
@@ -448,55 +459,243 @@
             padding: 0.65rem 2rem;
         }
 
-        /* Loading spinner */
-        .spinner {
-            display: inline-block;
-            width: 1rem;
-            height: 1rem;
-            border: 2px solid #4caf50;
-            border-top-color: transparent;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            vertical-align: middle;
-            margin-right: 0.5rem;
+        /* Step 4 - Batch Stream */
+        .progress-section {
+            margin-bottom: 1rem;
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        .progress-track {
+            height: 6px;
+            background: #161616;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+            border: 1px solid #1e1e1e;
         }
 
-        .loading-text {
-            font-size: 0.75rem;
-            color: #4caf50;
-            display: none;
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: linear-gradient(90deg, #1a4a1a, #2d7a2d, #1a4a1a);
+            background-size: 200% 100%;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        .progress-fill.active {
+            animation: shimmer 1.4s infinite linear;
+        }
+
+        @keyframes shimmer {
+            0%   { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .progress-meta {
+            display: flex;
+            justify-content: space-between;
             align-items: center;
         }
 
-        .loading-text.visible {
+        .progress-log {
+            font-size: 0.74rem;
+            color: #3a3a3a;
+            font-family: monospace;
+            line-height: 1.7;
+        }
+
+        .progress-log .log-active { color: #666; }
+        .progress-log .log-done   { color: #2a2a2a; }
+
+        .timer-display {
+            font-size: 0.72rem;
+            color: #2a2a2a;
+            font-family: monospace;
+            white-space: nowrap;
+        }
+
+        .status-line {
+            background: #0a0a0a;
+            border: 1px solid #1e1e1e;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.75rem;
+            color: #888;
+            line-height: 1.5;
+        }
+
+        .status-line.verdict {
+            border-color: #4a4a4a;
+            color: #e0e0e0;
+            font-size: 0.7rem;
+            padding: 0.5rem 0.75rem;
+        }
+
+        .status-line.verdict.green { border-color: #1a4a1a; background: #0d2a0d; }
+        .status-line.verdict.red { border-color: #4a1a1a; background: #2a0d0d; }
+        .status-line.verdict.orange { border-color: #4a3a1a; background: #2a1f0d; }
+        .status-line.verdict.grey { border-color: #222; background: #111; }
+
+        .batch-status {
+            margin-bottom: 1rem;
+        }
+
+        .batch-controls {
             display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #1e1e1e;
         }
 
-        /* Placeholder divs for future steps */
-        .step-placeholder {
-            background: #111;
-            border: 1px dashed #252525;
-            border-radius: 8px;
-            padding: 2rem;
+        .cancel-btn {
+            flex: 0 0 auto;
+            padding: 0.65rem 1rem;
+            background: #160808;
+            border: 1px solid #3a1515;
+            color: #cc3333;
+        }
+
+        .cancel-btn:hover {
+            border-color: #5a1a1a;
+        }
+
+        .warning-text {
+            font-size: 0.7rem;
+            color: #ff9800;
+            display: none;
+            margin-top: 0.5rem;
+        }
+
+        .warning-text.soft {
+            color: #4caf50;
+        }
+
+        .warning-text.hard {
+            color: #cc3333;
+        }
+
+        .warning-text.visible {
+            display: block;
+        }
+
+        /* Step 5 - Summary Table */
+        .summary-section {
             margin-top: 1.5rem;
-            text-align: center;
-            color: #444;
         }
 
-        .step-placeholder h3 {
-            font-size: 0.85rem;
-            color: #555;
+        .summary-section h2 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #3a3a3a;
+            margin-bottom: 1rem;
+        }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.7rem;
+        }
+
+        .summary-table th {
+            text-align: left;
+            padding: 0.5rem 0.75rem;
+            color: #888;
+            font-weight: 600;
+            border-bottom: 1px solid #1e1e1e;
+        }
+
+        .summary-table td {
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid #1e1e1e;
+            vertical-align: top;
+        }
+
+        .summary-table .citation-cell {
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+
+        .summary-table .verdict-cell {
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.65rem;
+            text-align: center;
+        }
+
+        .summary-table .expand-toggle {
+            color: #4caf50;
+            cursor: pointer;
+            user-select: none;
+            font-size: 0.7rem;
+        }
+
+        .summary-table .expand-toggle:hover {
+            color: #6bbf6b;
+        }
+
+        .summary-row-details {
+            background: #0a0a0a;
+            border-radius: 4px;
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
+        .summary-row-details.show {
+            display: block;
+        }
+
+        .reasoning {
+            font-size: 0.7rem;
+            color: #888;
+            line-height: 1.5;
             margin-bottom: 0.5rem;
         }
 
-        .step-placeholder p {
-            font-size: 0.75rem;
-            color: #333;
-            line-height: 1.5;
+        .passage {
+            font-size: 0.65rem;
+            color: #666;
+            line-height: 1.4;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .glossary {
+            font-size: 0.65rem;
+            color: #444;
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: #0a0a0a;
+            border: 1px solid #1e1e1e;
+            border-radius: 6px;
+        }
+
+        .glossary h3 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #3a3a3a;
+            margin-bottom: 0.75rem;
+        }
+
+        .glossary ul {
+            list-style: none;
+        }
+
+        .glossary li {
+            font-size: 0.65rem;
+            color: #555;
+            line-height: 1.8;
+            padding: 0.15rem 0;
+        }
+
+        .glossary li strong {
+            color: #666;
         }
 
         footer {
@@ -624,16 +823,65 @@
             </div>
         </div>
 
-        <!-- Step 4: Citation Results (Placeholder) -->
-        <div class="step-placeholder" id="step4">
-            <h3>Step 4: Citation Results</h3>
-            <p>Citation verification results will appear here.</p>
+        <!-- Step 4: Batch Stream -->
+        <div class="form-panel step-section" id="step4">
+            <h2>Batch Run</h2>
+
+            <div id="batchStatus" class="batch-status" style="display: none;">
+                <div class="progress-section">
+                    <div class="progress-track">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-meta">
+                        <div class="progress-log" id="progressLog"></div>
+                        <div class="timer-display" id="timerDisplay">0.0s</div>
+                    </div>
+                </div>
+
+                <div id="statusLines"></div>
+
+                <div class="warning-text" id="softWarning">Still working...</div>
+                <div class="warning-text" id="hardWarning">No response from server</div>
+            </div>
+
+            <div class="batch-controls">
+                <button type="button" id="backBtn4" class="cancel-btn">Cancel</button>
+            </div>
         </div>
 
-        <!-- Step 5: Summary (Placeholder) -->
-        <div class="step-placeholder" id="step5">
-            <h3>Step 5: Summary</h3>
-            <p>Overall summary will appear here.</p>
+        <!-- Step 5: Summary Table -->
+        <div class="form-panel step-section" id="step5">
+            <div class="summary-section">
+                <h2>Summary</h2>
+                <table class="summary-table" id="summaryTable">
+                    <thead>
+                        <tr>
+                            <th>Citation</th>
+                            <th>Phase 1</th>
+                            <th>Phase 2</th>
+                            <th>Phase 3</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="summaryTableBody">
+                    </tbody>
+                </table>
+
+                <div class="glossary">
+                    <h3>Verdict Glossary</h3>
+                    <ul>
+                        <li><strong>FABRICATED:</strong> Does not exist in any federal court record</li>
+                        <li><strong>MISATTRIBUTED:</strong> Coordinates belong to a different case</li>
+                        <li><strong>EXISTS:</strong> Citation verified</li>
+                        <li><strong>NOT FOUND:</strong> Quoted language not found in opinion</li>
+                        <li><strong>SUPPORTS:</strong> Case supports this argument</li>
+                        <li><strong>DOES_NOT_SUPPORT:</strong> Case does not support this argument</li>
+                        <li><strong>UNCERTAIN:</strong> Relationship unclear</li>
+                        <li><strong>SKIPPED:</strong> Not checked</li>
+                        <li><strong>ERROR:</strong> Verification failed</li>
+                    </ul>
+                </div>
+            </div>
         </div>
 
     </div>
@@ -643,6 +891,10 @@
         let citationsData = [];
         let depth = 'existence';
         let tally = { accepted: 0, rewritten: 0, skipped: 0, pending: 0 };
+        let es = null;
+        let timerInterval = null;
+        let lastActivity = Date.now();
+        let summaryData = [];
 
         document.getElementById('submitBtn').addEventListener('click', async (e) => {
             e.preventDefault();
@@ -893,18 +1145,226 @@
                 };
             });
 
-            try {
-                // TODO: Call /batch/stream endpoint with the citations
-                // For now, show placeholder message
-                setTimeout(() => {
-                    alert('Audit completed! In a production environment, this would stream verification results for each citation.');
-                    btn.textContent = 'Run Audit';
-                }, 500);
+            // Setup progress UI
+            const batchStatus = document.getElementById('batchStatus');
+            const progressFill = document.getElementById('progressFill');
+            const progressLog = document.getElementById('progressLog');
+            const timerDisplay = document.getElementById('timerDisplay');
+            const statusLines = document.getElementById('statusLines');
+            const softWarning = document.getElementById('softWarning');
+            const hardWarning = document.getElementById('hardWarning');
 
-            } catch (err) {
-                showError('Failed to run audit');
-                btn.textContent = 'Run Audit';
-            }
+            batchStatus.style.display = 'block';
+            progressFill.classList.add('active');
+            progressFill.style.width = '0%';
+            progressLog.innerHTML = '';
+            timerDisplay.textContent = '0.0s';
+            statusLines.innerHTML = '';
+            softWarning.classList.remove('visible');
+            hardWarning.classList.remove('visible');
+
+            // Timer
+            let startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                timerDisplay.textContent = elapsed + 's';
+            }, 100);
+
+            // Activity tracker
+            lastActivity = Date.now();
+            const activityCheck = setInterval(() => {
+                const silence = (Date.now() - lastActivity) / 1000;
+                if (silence > 30) {
+                    hardWarning.classList.add('visible');
+                } else if (silence > 10) {
+                    softWarning.classList.add('visible');
+                }
+            }, 1000);
+
+            // Open SSE connection
+            const eventSource = new EventSource(`/batch/stream?citations=${encodeURIComponent(JSON.stringify(citations))}&depth=${depth}`);
+
+            eventSource.onmessage = (event) => {
+                lastActivity = Date.now();
+                softWarning.classList.remove('visible');
+                hardWarning.classList.remove('visible');
+
+                try {
+                    const data = JSON.parse(event.data);
+                    const type = data.type;
+
+                    if (type === 'batch_start') {
+                        const total = data.total;
+                        progressLog.innerHTML = `<span class="log-active">Starting batch (${total} citations)</span>`;
+                    }
+
+                    else if (type === 'batch_progress') {
+                        const current = data.current;
+                        const total = data.total;
+                        progressFill.style.width = `${(current / total) * 100}%`;
+                        progressLog.innerHTML = `<span class="log-active">Processing citation ${current} of ${total}</span>`;
+                    }
+
+                    else if (type === 'parsed') {
+                        progressLog.innerHTML = `<span class="log-active">Citation parsed</span>`;
+                    }
+
+                    else if (type === 'phase1_start') {
+                        progressLog.innerHTML = `<span class="log-active">Phase 1: Checking whether citation exists...</span>`;
+                        const statusLine = document.createElement('div');
+                        statusLine.className = 'status-line';
+                        statusLine.id = 'phase1-line';
+                        statusLine.textContent = 'Checking whether citation exists...';
+                        statusLines.appendChild(statusLine);
+                    }
+
+                    else if (type === 'phase1_complete') {
+                        const verdict = data.data.verdict;
+                        const caseName = data.data.case_name || '';
+                        const line = document.getElementById('phase1-line');
+                        if (line) {
+                            line.className = 'status-line verdict ' + verdictClass(verdict);
+                            line.textContent = `${verdict}: ${caseName || 'Citation verified'}`;
+                        }
+                    }
+
+                    else if (type === 'phase2_start') {
+                        progressLog.innerHTML = `<span class="log-active">Phase 2: Verifying quoted language...</span>`;
+                        const statusLine = document.createElement('div');
+                        statusLine.className = 'status-line';
+                        statusLine.id = 'phase2-line';
+                        statusLine.textContent = 'Verifying quoted language...';
+                        statusLines.appendChild(statusLine);
+                    }
+
+                    else if (type === 'phase2_complete') {
+                        const verdict = data.data.display_verdict || data.data.verdict;
+                        const line = document.getElementById('phase2-line');
+                        if (line) {
+                            line.className = 'status-line verdict ' + verdictClass(verdict);
+                            line.textContent = `${verdict}: Quote verified`;
+                        }
+                    }
+
+                    else if (type === 'phase3_start') {
+                        progressLog.innerHTML = `<span class="log-active">Phase 3: Reading opinion for context...</span>`;
+                        const statusLine = document.createElement('div');
+                        statusLine.className = 'status-line';
+                        statusLine.id = 'phase3-line';
+                        statusLine.textContent = 'Reading opinion for context...';
+                        statusLines.appendChild(statusLine);
+                    }
+
+                    else if (type === 'phase3_complete') {
+                        const verdict = data.data.verdict;
+                        const line = document.getElementById('phase3-line');
+                        if (line) {
+                            line.className = 'status-line verdict ' + verdictClass(verdict);
+                            line.textContent = `${verdict}: Coherence check complete`;
+                        }
+                    }
+
+                    else if (type === 'heartbeat') {
+                        // Heartbeat handled by activity tracker
+                    }
+
+                    else if (type === 'batch_done') {
+                        clearInterval(timerInterval);
+                        clearInterval(activityCheck);
+                        progressFill.classList.remove('active');
+                        progressLog.innerHTML = `<span class="log-done">Batch complete</span>`;
+                        progressFill.style.width = '100%';
+                        eventSource.close();
+
+                        setTimeout(() => {
+                            document.getElementById('step4').style.display = 'none';
+                            document.getElementById('step5').style.display = 'block';
+                            renderSummary();
+                        }, 500);
+                    }
+
+                    else if (type === 'unparseable') {
+                        progressLog.innerHTML = `<span class="log-done">Could not parse citation</span>`;
+                    }
+
+                } catch (e) {
+                    console.error('Error parsing SSE data:', e);
+                }
+            };
+
+            eventSource.onerror = () => {
+                clearInterval(timerInterval);
+                clearInterval(activityCheck);
+                eventSource.close();
+                progressFill.classList.remove('active');
+                hardWarning.classList.add('visible');
+                setTimeout(() => {
+                    document.getElementById('step4').style.display = 'none';
+                    document.getElementById('step5').style.display = 'block';
+                    renderSummary();
+                }, 500);
+            };
+        });
+
+        function verdictClass(v) {
+            if (!v) return 'grey';
+            if (['EXISTS', 'SUPPORTS'].includes(v) || v.includes('MATCH')) return 'green';
+            if (['FABRICATED', 'DOES_NOT_SUPPORT', 'NOT_FOUND'].includes(v)) return 'red';
+            if (['MISATTRIBUTED', 'UNCERTAIN'].includes(v)) return 'orange';
+            return 'grey';
+        }
+
+        function renderSummary() {
+            const tbody = document.getElementById('summaryTableBody');
+            tbody.innerHTML = '';
+
+            citationsData.forEach((citation, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="citation-cell">${citation.citation_text}</td>
+                    <td class="verdict-cell verdict-${verdictClass(citation.phase1_verdict || 'UNCERTAIN')}">${citation.phase1_verdict || '-'}</td>
+                    <td class="verdict-cell verdict-${verdictClass(citation.phase2_verdict || 'UNCERTAIN')}">${citation.phase2_verdict || '-'}</td>
+                    <td class="verdict-cell verdict-${verdictClass(citation.phase3_verdict || 'UNCERTAIN')}">${citation.phase3_verdict || '-'}</td>
+                    <td><span class="expand-toggle" data-index="${index}">Expand</span></td>
+                `;
+
+                // Add expand handler
+                const expandBtn = tr.querySelector('.expand-toggle');
+                expandBtn.addEventListener('click', () => {
+                    const details = tr.querySelector('.summary-row-details');
+                    const isShowing = details.classList.contains('show');
+                    // Close all others
+                    document.querySelectorAll('.summary-row-details').forEach(d => d.classList.remove('show'));
+                    document.querySelectorAll('.expand-toggle').forEach(t => t.textContent = 'Expand');
+
+                    if (!isShowing) {
+                        details.classList.add('show');
+                        expandBtn.textContent = 'Collapse';
+                    }
+                });
+
+                tbody.appendChild(tr);
+
+                // Add details row
+                const detailsTr = document.createElement('tr');
+                detailsTr.innerHTML = `
+                    <td colspan="5">
+                        <div class="summary-row-details">
+                            <div class="reasoning">Phase 1: ${citation.phase1_reasoning || 'No reasoning available'}</div>
+                            <div class="reasoning">Phase 2: ${citation.phase2_reasoning || 'No reasoning available'}</div>
+                            <div class="reasoning">Phase 3: ${citation.phase3_reasoning || 'No reasoning available'}</div>
+                            <div class="passage">Matched passage: ${citation.matched_passage || 'No passage available'}</div>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(detailsTr);
+            });
+        }
+
+        document.getElementById('backBtn4').addEventListener('click', () => {
+            // Return to Step 3 silently without losing state
+            document.getElementById('step4').style.display = 'none';
+            document.getElementById('step3').style.display = 'block';
         });
 
         function showError(message) {
