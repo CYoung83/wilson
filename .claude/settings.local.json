@@ -27,7 +27,11 @@
       "Bash(.\\\\venv\\\\Scripts\\\\python.exe:*)",
       "Bash(curl -s http://localhost:8000/upload)",
       "Bash(curl:*)",
-      "Bash(find . -type d -name \"__pycache__\" -exec rm -rf {} +)"
+      "Bash(find . -type d -name \"__pycache__\" -exec rm -rf {} +)",
+      "Bash(.\\\\venv/Scripts/python.exe:*)",
+      "Bash(git push:*)",
+      "Bash(Select-Object -Last 15)",
+      "Bash(git checkout:*)"
     ]
   }
 }
