@@ -82,6 +82,11 @@ class BatchPropositionsRequest(BaseModel):
     citations: list[CitationRequest]
 
 
+class BatchStreamRequest(BaseModel):
+    citations: list[dict]
+    depth: str
+
+
 # ------------------------------------------------------------------------------
 # Pipeline functions
 # ------------------------------------------------------------------------------
@@ -534,6 +539,60 @@ async def batch_propositions(request: BatchPropositionsRequest):
             1 for p in propositions if p.get("backend_used") == "ollama"
         ),
     }
+
+
+@app.post("/batch/stream")
+async def batch_stream(request: BatchStreamRequest):
+    """
+    Stream verification results for multiple citations.
+    Uses raw StreamingResponse with text/event-stream.
+    """
+    async def stream_citations():
+        total = len(request.citations)
+        start_time = time.time()
+
+        # Batch start event
+        yield make_event("batch_start", total=total)
+        await asyncio.sleep(0)
+
+        for i, citation in enumerate(request.citations):
+            citation_text = citation.get("citation_text", "").strip()
+            proposition = citation.get("proposition", "").strip()
+
+            # Batch progress event
+            yield make_event("batch_progress", current=i+1, total=total)
+            await asyncio.sleep(0)
+
+            # Run pipeline with depth control
+            quoted_text = None
+            if request.depth in ("quotes", "full"):
+                quoted_text = None  # Batch stream doesn't include quoted_text
+
+            # Stream pipeline results for this citation
+            async for raw in run_pipeline(citation_text, quoted_text, proposition):
+                # Send directly to client
+                yield raw
+                await asyncio.sleep(0)
+
+            # Heartbeat every 3 seconds during long calls
+            elapsed = time.time() - start_time
+            if elapsed > 3 and request.depth == "full":
+                yield make_event("heartbeat")
+                await asyncio.sleep(0)
+
+        # Batch done event
+        duration = round(time.time() - start_time, 2)
+        yield make_event("batch_done", total=total, duration=duration)
+
+    return StreamingResponse(
+        stream_citations(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        }
+    )
 
 
 @app.get("/upload", response_class=HTMLResponse)
