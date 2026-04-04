@@ -98,3 +98,56 @@ def test_extract_text_docx_corrupted():
     """Corrupted DOCX bytes raise RuntimeError with plain-English message."""
     with pytest.raises(RuntimeError, match="Could not read DOCX file"):
         extract_text(b"this is not a docx", "broken.docx")
+
+
+# ---------------------------------------------------------------------------
+# PDF extraction
+# ---------------------------------------------------------------------------
+
+
+def _make_pdf_bytes(pages: list) -> bytes:
+    """Helper: create a minimal in-memory PDF with one text page per string."""
+    import io
+    import pypdf
+    from pypdf import PdfWriter
+
+    writer = PdfWriter()
+    for text in pages:
+        # Add a blank page and overlay text via a simple content stream
+        page = writer.add_blank_page(width=612, height=792)
+        # pypdf doesn't have a simple add_text API; use a content stream
+        content = f"BT /F1 12 Tf 72 720 Td ({text[:80]}) Tj ET"
+        from pypdf.generic import ContentStream, DecodedStreamObject
+        stream = DecodedStreamObject()
+        stream.set_data(content.encode())
+        page["/Contents"] = stream
+
+    buf = io.BytesIO()
+    writer.write(buf)
+    return buf.getvalue()
+
+
+def test_extract_text_pdf_page_count():
+    """PDF extraction returns correct page count via pypdf."""
+    import io
+    import pypdf
+    from pypdf import PdfWriter
+
+    writer = PdfWriter()
+    writer.add_blank_page(width=612, height=792)
+    writer.add_blank_page(width=612, height=792)
+    buf = io.BytesIO()
+    writer.write(buf)
+    pdf_bytes = buf.getvalue()
+
+    result = extract_text(pdf_bytes, "two_pages.pdf")
+    assert result["extraction_method"] == "text_layer"
+    assert result["page_count"] == 2
+    assert len(result["page_boundaries"]) == 2
+    assert result["page_boundaries"][0] == 0
+
+
+def test_extract_text_pdf_corrupted():
+    """Corrupted PDF bytes raise RuntimeError with plain-English message."""
+    with pytest.raises(RuntimeError, match="Could not read PDF file"):
+        extract_text(b"not a pdf at all", "broken.pdf")
