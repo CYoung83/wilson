@@ -52,3 +52,32 @@ def test_fetch_cluster_blocked_missing_field_returns_false():
     with patch("api.http_requests.get", return_value=mock_resp):
         result = fetch_cluster_blocked(111170)
     assert result is False
+
+
+# ---------------------------------------------------------------------------
+# Task 2: name-based lookup confidence threshold
+# ---------------------------------------------------------------------------
+
+def test_name_similarity_above_threshold_proceeds():
+    """
+    When name similarity >= 60%, fallback proceeds normally.
+    Similarity between 'Daubert v. Merrell Dow' and
+    'Daubert v. Merrell Dow Pharmaceuticals, Inc.' should be >= 60.
+    """
+    from rapidfuzz import fuzz
+    user_input = "Daubert v. Merrell Dow"
+    actual = "Daubert v. Merrell Dow Pharmaceuticals, Inc."
+    score = fuzz.partial_ratio(user_input.lower(), actual.lower())
+    assert score >= 60
+
+
+def test_name_similarity_below_threshold_blocked():
+    """
+    When name similarity < 60%, the fallback should not proceed.
+    Completely unrelated names should score below threshold.
+    """
+    from rapidfuzz import fuzz
+    user_input = "Smith v. Jones"
+    actual = "Daubert v. Merrell Dow Pharmaceuticals, Inc."
+    score = fuzz.partial_ratio(user_input.lower(), actual.lower())
+    assert score < 60

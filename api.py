@@ -37,6 +37,7 @@ CL_TOKEN = os.getenv("COURTLISTENER_TOKEN")
 CL_HEADERS = {"Authorization": f"Token {CL_TOKEN}"}
 CITATIONS_CSV = os.getenv("CITATIONS_CSV", "data/citations-2026-03-31.csv")
 CASE_NAME_MATCH_THRESHOLD = 75
+FALLBACK_CONFIDENCE_THRESHOLD = 60
 MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50MB in bytes
 
 # ------------------------------------------------------------------------------
@@ -253,6 +254,30 @@ async def run_pipeline(
         fb_found, _, fb_case_name, fb_full_citation, fb_message = lookup_by_name(citation_text)
 
         if fb_found and fb_full_citation:
+            # Check confidence before proceeding -- low similarity means
+            # Wilson may have found the wrong case
+            from rapidfuzz import fuzz as _fuzz
+            fallback_similarity = _fuzz.partial_ratio(
+                citation_text.lower(),
+                (fb_case_name or "").lower()
+            )
+            if fallback_similarity < FALLBACK_CONFIDENCE_THRESHOLD:
+                yield make_event("suggestion", data={
+                    "user_input": citation_text,
+                    "suggested_citation": fb_full_citation,
+                    "suggested_name": fb_case_name,
+                    "similarity": round(fallback_similarity),
+                    "message": (
+                        f"Wilson found a case that may match: {fb_case_name} "
+                        f"({fb_full_citation}). Similarity to your input: "
+                        f"{round(fallback_similarity)}%. "
+                        f"Please verify this is the correct case before proceeding."
+                    )
+                })
+                yield make_event("done", duration=round(time.time() - start_time, 2))
+                return
+
+            # Similarity acceptable -- proceed with fallback citation
             citations = get_citations(fb_full_citation)
             used_fallback = True
             fallback_citation = fb_full_citation
