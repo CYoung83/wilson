@@ -314,3 +314,123 @@ def _extract_context_window(text: str, char_offset: int, citation_str: str) -> s
             snippet = snippet[:500].rsplit(" ", 1)[0] + "..."
 
     return snippet if snippet else citation_str
+
+
+# ---------------------------------------------------------------------------
+# Proposition Suggestion
+# ---------------------------------------------------------------------------
+
+import requests as http_requests
+
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3.5:35b")
+
+PROPOSITION_PROMPT = """You are a legal citation analyst. Given a legal citation and the surrounding text from a court filing, identify the legal proposition the citation is being used to support.
+
+Respond ONLY with a valid JSON object in this exact format:
+{{"proposition": "One plain-English sentence stating what legal argument this case supports."}}
+
+Citation: {citation_text}
+Context: {context_snippet}"""
+
+
+def suggest_proposition(citation_text: str, context_snippet: str) -> dict:
+    """
+    Generate a plain-English proposition for a legal citation using Ollama.
+
+    Calls the local Ollama instance with the citation and its surrounding
+    context. Asks the model to produce one plain-English sentence describing
+    what legal argument this case is being cited for.
+
+    Degrades gracefully: if Ollama is unavailable or returns unparseable
+    output, backend_used is set to "fallback" and proposition is set to
+    the raw context snippet so the user has something to start with.
+
+    Args:
+        citation_text: the normalized citation string
+        context_snippet: surrounding text from the document (~500 chars)
+
+    Returns:
+        {
+            "proposition": str,           # plain-English proposition
+            "backend_used": str,          # "ollama" or "fallback"
+            "raw_snippet": str            # always the original context
+        }
+    """
+    import json
+
+    fallback = {
+        "proposition": context_snippet,
+        "backend_used": "fallback",
+        "raw_snippet": context_snippet,
+    }
+
+    try:
+        prompt = PROPOSITION_PROMPT.format(
+            citation_text=citation_text,
+            context_snippet=context_snippet,
+        )
+        resp = http_requests.post(
+            f"{OLLAMA_HOST}/api/generate",
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "format": "json",
+                "think": False,
+                "stream": False,
+            },
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            return fallback
+
+        raw = resp.json().get("response", "")
+        parsed = json.loads(raw)
+        proposition = parsed.get("proposition", "").strip()
+        if not proposition:
+            return fallback
+
+        return {
+            "proposition": proposition,
+            "backend_used": "ollama",
+            "raw_snippet": context_snippet,
+        }
+
+    except Exception:
+        return fallback
+
+
+async def suggest_propositions_batch(citations: list) -> list:
+    """
+    Generate proposition suggestions for a list of citations concurrently.
+
+    Processes citations in chunks of 3 via asyncio.gather to balance
+    responsiveness (queue populates as user reviews) against efficiency
+    (avoids hammering Ollama with 50 simultaneous requests).
+
+    Args:
+        citations: list of dicts with citation_text and context_snippet keys
+
+    Returns:
+        list of suggest_proposition results, one per citation, in input order
+    """
+    import asyncio
+
+    async def _suggest_async(citation: dict) -> dict:
+        """Wrap synchronous suggest_proposition for use with asyncio.gather."""
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None,
+            suggest_proposition,
+            citation["citation_text"],
+            citation["context_snippet"],
+        )
+
+    results = []
+    for i in range(0, len(citations), PROPOSITION_BATCH_SIZE):
+        chunk = citations[i:i + PROPOSITION_BATCH_SIZE]
+        chunk_results = await asyncio.gather(*[_suggest_async(c) for c in chunk])
+        results.extend(chunk_results)
+        await asyncio.sleep(0)
+
+    return results

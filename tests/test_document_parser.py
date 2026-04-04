@@ -212,3 +212,58 @@ def test_extract_citations_context_window():
     results = extract_citations_with_context(text, [0])
     snippet = results[0]["context_snippet"]
     assert "First sentence before" in snippet or "Last sentence after" in snippet
+
+# ---------------------------------------------------------------------------
+# Task 6: Proposition Suggestion
+# ---------------------------------------------------------------------------
+
+from unittest.mock import patch, MagicMock
+
+
+def test_suggest_proposition_returns_required_keys():
+    """suggest_proposition always returns proposition, backend_used, raw_snippet."""
+    from document_parser import suggest_proposition
+    with patch("document_parser.OLLAMA_HOST", "http://localhost:99999"):
+        result = suggest_proposition("384 U.S. 436", "some context")
+    assert "proposition" in result
+    assert "backend_used" in result
+    assert "raw_snippet" in result
+
+
+def test_suggest_proposition_fallback():
+    """When Ollama is unavailable, returns raw_snippet as proposition."""
+    from document_parser import suggest_proposition
+    with patch("document_parser.OLLAMA_HOST", "http://localhost:99999"):
+        result = suggest_proposition(
+            "Miranda v. Arizona, 384 U.S. 436 (1966)",
+            "The court held suspects must be informed of their rights."
+        )
+    assert result["backend_used"] == "fallback"
+    assert result["raw_snippet"] == "The court held suspects must be informed of their rights."
+    assert result["proposition"] == "The court held suspects must be informed of their rights."
+
+
+def test_suggest_proposition_fallback_on_bad_json():
+    """When Ollama returns non-JSON, falls back gracefully."""
+    from document_parser import suggest_proposition
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"response": "not json at all"}
+    with patch("document_parser.http_requests.post", return_value=mock_resp):
+        result = suggest_proposition("384 U.S. 436", "some context")
+    assert result["backend_used"] == "fallback"
+    assert result["raw_snippet"] == "some context"
+
+
+def test_suggest_propositions_batch_returns_all():
+    """suggest_propositions_batch returns one result per citation."""
+    import asyncio
+    from document_parser import suggest_propositions_batch
+    citations = [
+        {"citation_text": "384 U.S. 436", "context_snippet": "context one"},
+        {"citation_text": "466 U.S. 668", "context_snippet": "context two"},
+    ]
+    with patch("document_parser.OLLAMA_HOST", "http://localhost:99999"):
+        results = asyncio.run(suggest_propositions_batch(citations))
+    assert len(results) == 2
+    assert all("proposition" in r for r in results)
