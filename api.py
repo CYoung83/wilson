@@ -73,6 +73,15 @@ class VerifyRequest(BaseModel):
     proposition: Optional[str] = None
 
 
+class CitationRequest(BaseModel):
+    citation_text: str
+    context_snippet: str
+
+
+class BatchPropositionsRequest(BaseModel):
+    citations: list[CitationRequest]
+
+
 # ------------------------------------------------------------------------------
 # Pipeline functions
 # ------------------------------------------------------------------------------
@@ -495,6 +504,36 @@ async def verify(request: VerifyRequest):
             result["error"] = e.get("message")
 
     return result
+
+
+@app.post("/batch/propositions")
+async def batch_propositions(request: BatchPropositionsRequest):
+    """
+    Generate proposition suggestions for multiple citations in a single request.
+    Calls suggest_propositions_batch() from document_parser.py.
+    """
+    from document_parser import suggest_propositions_batch
+
+    # Convert request citations to the format expected by suggest_propositions_batch
+    citations_list = [
+        {
+            "citation_text": c.citation_text,
+            "context_snippet": c.context_snippet,
+        }
+        for c in request.citations
+    ]
+
+    # Generate propositions for all citations
+    propositions = await suggest_propositions_batch(citations_list)
+
+    # Build response
+    return {
+        "propositions": propositions,
+        "total_citations": len(request.citations),
+        "backend_used_count": sum(
+            1 for p in propositions if p.get("backend_used") == "ollama"
+        ),
+    }
 
 
 @app.get("/upload", response_class=HTMLResponse)
