@@ -1,5 +1,5 @@
 """
-Wilson API v0.0.5
+Wilson API v0.1.0
 
 FastAPI-based REST API and web interface for Wilson citation verification.
 Uses Server-Sent Events (SSE) for streaming phase-by-phase results.
@@ -20,7 +20,7 @@ import pandas as pd
 from typing import Optional, AsyncGenerator
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request, UploadFile, File
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -663,7 +663,7 @@ async def health():
         pass
     return {
         "status": "operational",
-        "version": "0.0.5",
+        "version": "0.1.0",
         "phases": {
             "phase1_api": {
                 "available": cl_available,
@@ -691,6 +691,18 @@ async def health():
             "latest_filename": CSV_LATEST_FILENAME
         }
     }
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    """Serve the Wilson favicon from the installer directory."""
+    import pathlib
+    ico_path = pathlib.Path(__file__).parent / "installer" / "wilson_icon.ico"
+    if ico_path.exists():
+        return FileResponse(str(ico_path), media_type="image/x-icon")
+    # Fallback: return empty 204 response if icon not found
+    from fastapi.responses import Response
+    return Response(status_code=204)
 
 
 @app.get("/settings/ollama-models")
@@ -854,7 +866,7 @@ async def verify(request: VerifyRequest):
 
     result = {
         "citation": citation_text,
-        "version": "0.0.5",
+        "version": "0.1.0",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
