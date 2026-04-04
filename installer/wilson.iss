@@ -1,12 +1,12 @@
 ; ==============================================================================
-; Wilson Installer Script v0.0.5
+; Wilson Installer Script v0.1.0
 ; Inno Setup 6.x
 ; ==============================================================================
 ; Script location: wilson\installer\wilson.iss
 ; ==============================================================================
 
 #define AppName "Wilson"
-#define AppVersion "0.0.5"
+#define AppVersion "0.1.0"
 #define AppPublisher "National Standard Consulting LLC"
 #define AppURL "https://github.com/CYoung83/wilson"
 #define PythonZip "python-3.13.12-embed-amd64.zip"
@@ -52,7 +52,7 @@ Name: "core"; Description: "Wilson core files (required)"; Types: full compact c
 Name: "csv";  Description: "Bulk citation database (~1.9GB -- enables fast offline verification)"; Types: full
 
 [Tasks]
-Name: "desktopicon";   Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:";
+Name: "desktopicon";   Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"
 Name: "startmenuicon"; Description: "Create a Start Menu entry"; GroupDescription: "Shortcuts:"
 
 [Files]
@@ -60,14 +60,15 @@ Name: "startmenuicon"; Description: "Create a Start Menu entry"; GroupDescriptio
 Source: "..\api.py";                  DestDir: "{app}"; Flags: ignoreversion; Components: core
 Source: "..\quote_verify.py";         DestDir: "{app}"; Flags: ignoreversion; Components: core
 Source: "..\coherence_check.py";      DestDir: "{app}"; Flags: ignoreversion; Components: core
+Source: "..\document_parser.py";      DestDir: "{app}"; Flags: ignoreversion; Components: core
 Source: "..\smoke_test.py";           DestDir: "{app}"; Flags: ignoreversion; Components: core
 Source: "..\test_mata_avianca.py";    DestDir: "{app}"; Flags: ignoreversion; Components: core
 Source: "..\charlotin_processor.py";  DestDir: "{app}"; Flags: ignoreversion; Components: core
 Source: "..\requirements.txt";        DestDir: "{app}"; Flags: ignoreversion; Components: core
-Source: "..\.env.example";             DestDir: "{app}"; DestName: ".env.example"; Flags: ignoreversion; Components: core
+Source: "..\env.example";             DestDir: "{app}"; DestName: ".env.example"; Flags: ignoreversion; Components: core
 Source: "..\README.md";               DestDir: "{app}"; Flags: ignoreversion isreadme; Components: core
-Source: "..\API_ACCESS_NOTES.md";     DestDir: "{app}"; Flags: ignoreversion; Components: core
 Source: "..\LICENSE";                 DestDir: "{app}"; Flags: ignoreversion; Components: core
+Source: "..\CLAUDE.md";               DestDir: "{app}"; Flags: ignoreversion; Components: core
 
 ; Templates
 Source: "..\templates\*"; DestDir: "{app}\templates"; Flags: ignoreversion recursesubdirs; Components: core
