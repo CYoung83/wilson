@@ -343,7 +343,13 @@
             <span class="status-pill off" title="{{ llm_message }}">Phase 3 -- Offline</span>
         {% endif %}
         {% if csv_available %}
-            <span class="status-pill ok">Offline CSV -- 18M Records</span>
+            {% if csv_update_available %}
+                <span class="status-pill warn" title="Update available: {{ csv_latest_filename }}. Re-run setup to update.">
+                    Offline CSV -- Update Available
+                </span>
+            {% else %}
+                <span class="status-pill ok">Offline CSV -- 18M Records</span>
+            {% endif %}
         {% else %}
             <span class="status-pill warn">Offline CSV -- Not Configured</span>
         {% endif %}

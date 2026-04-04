@@ -33,6 +33,20 @@ from coherence_check import check_coherence, coherence_available
 
 load_dotenv()
 
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Run startup tasks: pre-load CSV, check for updates."""
+    # Pre-load CSV into memory on startup (not on first request)
+    if os.path.exists(CITATIONS_CSV):
+        print("Pre-loading citations CSV into memory...")
+        get_citations_df()
+        # Check for CSV updates in background (non-blocking)
+        import asyncio
+        asyncio.get_event_loop().run_in_executor(None, check_csv_update_available)
+    yield
+
 CL_TOKEN = os.getenv("COURTLISTENER_TOKEN")
 CL_HEADERS = {"Authorization": f"Token {CL_TOKEN}"}
 CITATIONS_CSV = os.getenv("CITATIONS_CSV", "data/citations-2026-03-31.csv")
@@ -55,10 +69,98 @@ def get_citations_df():
     return _citations_df
 
 
+# CSV update check -- populated at startup, checked by /health endpoint
+CSV_UPDATE_AVAILABLE = False
+CSV_LATEST_FILENAME = None
+
+
+def parse_csv_date(csv_path: Optional[str]):
+    """
+    Extract the date from a CourtListener bulk CSV filename.
+
+    CourtListener names bulk files as citations-YYYY-MM-DD.csv.
+    Returns a datetime.date object or None if no date found.
+
+    Args:
+        csv_path: Full path or filename of the CSV file
+
+    Returns:
+        datetime.date if parseable, None otherwise
+    """
+    if not csv_path:
+        return None
+    import re
+    from datetime import date
+    filename = os.path.basename(csv_path)
+    match = re.search(r"citations-(\d{4})-(\d{2})-(\d{2})", filename)
+    if not match:
+        return None
+    try:
+        return date(int(match.group(1)), int(match.group(2)), int(match.group(3)))
+    except ValueError:
+        return None
+
+
+def check_csv_update_available() -> bool:
+    """
+    Check CourtListener S3 for bulk citation CSV files newer than the current one.
+
+    Queries the public S3 bucket listing for files matching the citations-*.csv.bz2
+    pattern and compares dates against the current CSV filename.
+
+    Returns True if a newer file is found, False otherwise (including on errors).
+    Errors are logged but never raised -- update check is informational only.
+    """
+    global CSV_UPDATE_AVAILABLE, CSV_LATEST_FILENAME
+
+    current_date = parse_csv_date(CITATIONS_CSV)
+    if not current_date:
+        return False
+
+    try:
+        import xml.etree.ElementTree as ET
+        resp = http_requests.get(
+            "https://com-courtlistener-storage.s3-us-west-2.amazonaws.com/",
+            params={"prefix": "bulk-data/citations-", "delimiter": "/"},
+            timeout=10
+        )
+        if resp.status_code != 200:
+            return False
+
+        root = ET.fromstring(resp.text)
+        ns = {"s3": "http://s3.amazonaws.com/doc/2006-03-01/"}
+        keys = [
+            el.text for el in root.findall(".//s3:Key", ns)
+            if el.text and el.text.endswith(".csv.bz2")
+        ]
+
+        latest = None
+        latest_key = None
+        for key in keys:
+            d = parse_csv_date(key)
+            if d and (latest is None or d > latest):
+                latest = d
+                latest_key = key
+
+        if latest and latest > current_date:
+            CSV_UPDATE_AVAILABLE = True
+            CSV_LATEST_FILENAME = latest_key.split("/")[-1] if latest_key else None
+            print(f"CSV update available: {CSV_LATEST_FILENAME}")
+            return True
+
+        CSV_UPDATE_AVAILABLE = False
+        return False
+
+    except Exception as e:
+        print(f"CSV update check failed: {e}")
+        return False
+
+
 app = FastAPI(
     title="Wilson",
     description="AI Reasoning Auditor -- Open-source legal citation verification",
-    version="0.0.5",
+    version="0.1.0",
+    lifespan=lifespan,
 )
 
 templates = Jinja2Templates(directory="templates")
@@ -478,6 +580,8 @@ async def index(request: Request):
             "llm_available": available,
             "llm_message": llm_message,
             "csv_available": os.path.exists(CITATIONS_CSV),
+            "csv_update_available": CSV_UPDATE_AVAILABLE,
+            "csv_latest_filename": CSV_LATEST_FILENAME,
         }
     )
 
@@ -521,6 +625,10 @@ async def health():
                 "description": "Coherence checking via local LLM",
                 "message": llm_message
             }
+        },
+        "csv_update": {
+            "available": CSV_UPDATE_AVAILABLE,
+            "latest_filename": CSV_LATEST_FILENAME
         }
     }
 

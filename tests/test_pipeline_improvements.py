@@ -81,3 +81,37 @@ def test_name_similarity_below_threshold_blocked():
     actual = "Daubert v. Merrell Dow Pharmaceuticals, Inc."
     score = fuzz.partial_ratio(user_input.lower(), actual.lower())
     assert score < 60
+
+
+# ---------------------------------------------------------------------------
+# Task 3: CSV update check
+# ---------------------------------------------------------------------------
+
+def test_parse_csv_date_valid():
+    """parse_csv_date extracts date from standard filename."""
+    from api import parse_csv_date
+    from datetime import date
+    result = parse_csv_date("citations-2026-03-31.csv")
+    assert result == date(2026, 3, 31)
+
+
+def test_parse_csv_date_full_path():
+    """parse_csv_date handles full file paths."""
+    from api import parse_csv_date
+    from datetime import date
+    result = parse_csv_date("/var/data/citations-2025-12-01.csv")
+    assert result == date(2025, 12, 1)
+
+
+def test_parse_csv_date_no_date_returns_none():
+    """parse_csv_date returns None when filename has no parseable date."""
+    from api import parse_csv_date
+    result = parse_csv_date("citations.csv")
+    assert result is None
+
+
+def test_parse_csv_date_none_input_returns_none():
+    """parse_csv_date returns None for None input."""
+    from api import parse_csv_date
+    result = parse_csv_date(None)
+    assert result is None
