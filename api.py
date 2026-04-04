@@ -19,7 +19,7 @@ import asyncio
 import pandas as pd
 from typing import Optional, AsyncGenerator
 from datetime import datetime, timezone
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -37,6 +37,7 @@ CL_TOKEN = os.getenv("COURTLISTENER_TOKEN")
 CL_HEADERS = {"Authorization": f"Token {CL_TOKEN}"}
 CITATIONS_CSV = os.getenv("CITATIONS_CSV", "data/citations-2026-03-31.csv")
 CASE_NAME_MATCH_THRESHOLD = 75
+MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50MB in bytes
 
 # ------------------------------------------------------------------------------
 # In-memory CSV — loaded once at first request, reused for all subsequent queries
@@ -494,3 +495,68 @@ async def verify(request: VerifyRequest):
             result["error"] = e.get("message")
 
     return result
+
+
+@app.get("/upload", response_class=HTMLResponse)
+async def upload_page(request: Request):
+    """Serve the document upload form."""
+    return templates.TemplateResponse(
+        request=request,
+        name="upload.html"
+    )
+
+
+@app.post("/upload/parse")
+async def parse_upload_file(file: UploadFile = File(...)):
+    """
+    Parse an uploaded document and extract citations with context.
+    Enforces 50MB file size limit.
+    Returns JSON with extraction results.
+    """
+    from document_parser import extract_text, extract_citations_with_context
+
+    # Check file size
+    file_size = 0
+    chunks = []
+    try:
+        for chunk in file.file:
+            file_size += len(chunk)
+            chunks.append(chunk)
+            if file_size > MAX_UPLOAD_SIZE:
+                raise ValueError(
+                    f"File too large: {file_size / (1024 * 1024):.2f}MB exceeds 50MB limit"
+                )
+    except Exception as e:
+        raise ValueError(f"Error reading file: {e}")
+
+    file.file.seek(0)  # Reset file pointer after reading chunks
+    file_bytes = b''.join(chunks)
+
+    try:
+        # Extract text from file
+        text_result = extract_text(file_bytes, file.filename)
+
+        # Extract citations with context
+        citations = extract_citations_with_context(
+            text_result["text"],
+            text_result["page_boundaries"]
+        )
+
+        # Build response
+        response = {
+            "filename": file.filename,
+            "page_count": text_result["page_count"],
+            "citation_count": len(citations),
+            "citations": citations,
+            "chunked": True,
+            "total_pages": text_result["page_count"],
+        }
+
+        return response
+
+    except ValueError as e:
+        raise ValueError(str(e))
+    except RuntimeError as e:
+        raise ValueError(f"Extraction failed: {e}")
+    except Exception as e:
+        raise ValueError(f"Unexpected error: {e}")

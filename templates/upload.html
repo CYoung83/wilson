@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wilson -- Document Upload</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        body { padding: 2rem; max-width: 800px; margin: 0 auto; background: #f5f5f5; color: #333; }
+        .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { margin-bottom: 1rem; color: #1a1a1a; }
+        p { margin-bottom: 1.5rem; line-height: 1.6; }
+        .form-group { margin-bottom: 1.5rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+        input[type="file"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        input[type="file"]:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        .info-box {
+            background: #e8f4f8;
+            border-left: 4px solid #007bff;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+        }
+        .info-box ul {
+            margin-left: 1.5rem;
+            margin-top: 0.5rem;
+        }
+        .info-box li { margin-bottom: 0.25rem; }
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .error {
+            color: #d32f2f;
+            padding: 1rem;
+            background: #ffebee;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        .success {
+            color: #2e7d32;
+            padding: 1rem;
+            background: #e8f5e9;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        #results {
+            margin-top: 2rem;
+            display: none;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th { background: #f8f9fa; font-weight: 600; }
+        tr:hover { background: #f1f1f1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Wilson -- Document Upload</h1>
+        <p>Upload a legal document to extract citations and analyze their usage.</p>
+
+        <div class="info-box">
+            <strong>Supported file types:</strong>
+            <ul>
+                <li>PDF documents (.pdf)</li>
+                <li>Word documents (.docx)</li>
+                <li>Plain text files (.txt)</li>
+            </ul>
+            <strong>File size limit:</strong> 50 MB
+        </div>
+
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="file">Select File</label>
+                <input type="file" id="file" name="file" accept=".pdf,.docx,.txt" required>
+            </div>
+
+            <div id="error" class="error"></div>
+            <div id="success" class="success"></div>
+
+            <button type="submit" id="submitBtn">Analyze Document</button>
+        </form>
+
+        <div id="results">
+            <h2>Extraction Results</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Citation Text</th>
+                        <th>Page</th>
+                        <th>Context Snippet</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const file = document.getElementById('file').files[0];
+            const errorDiv = document.getElementById('error');
+            const successDiv = document.getElementById('success');
+            const resultsDiv = document.getElementById('results');
+            const resultsBody = document.getElementById('resultsBody');
+            const submitBtn = document.getElementById('submitBtn');
+
+            if (!file) {
+                showError('Please select a file to upload.');
+                return;
+            }
+
+            // Reset UI
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+            resultsDiv.style.display = 'none';
+            resultsBody.innerHTML = '';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Analyzing...';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload/parse', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Display success
+                successDiv.style.display = 'block';
+                successDiv.innerHTML = `
+                    <strong>Success!</strong> Extracted ${data.citation_count} citation(s) from ${data.page_count} page(s).
+                `;
+
+                // Display results
+                resultsDiv.style.display = 'block';
+                data.citations.forEach(citation => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${citation.citation_text}</td>
+                        <td>${citation.page_number}</td>
+                        <td>${citation.context_snippet.substring(0, 200)}${citation.context_snippet.length > 200 ? '...' : ''}</td>
+                    `;
+                    resultsBody.appendChild(row);
+                });
+
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Analyze Document';
+            }
+        });
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = `Error: ${message}`;
+            errorDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
