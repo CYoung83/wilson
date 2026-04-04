@@ -19,7 +19,7 @@ import asyncio
 import pandas as pd
 from typing import Optional, AsyncGenerator
 from datetime import datetime, timezone
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -37,6 +37,7 @@ CL_TOKEN = os.getenv("COURTLISTENER_TOKEN")
 CL_HEADERS = {"Authorization": f"Token {CL_TOKEN}"}
 CITATIONS_CSV = os.getenv("CITATIONS_CSV", "data/citations-2026-03-31.csv")
 CASE_NAME_MATCH_THRESHOLD = 75
+MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50MB in bytes
 
 # ------------------------------------------------------------------------------
 # In-memory CSV — loaded once at first request, reused for all subsequent queries
@@ -70,6 +71,20 @@ class VerifyRequest(BaseModel):
     citation: str
     quoted_text: Optional[str] = None
     proposition: Optional[str] = None
+
+
+class CitationRequest(BaseModel):
+    citation_text: str
+    context_snippet: str
+
+
+class BatchPropositionsRequest(BaseModel):
+    citations: list[CitationRequest]
+
+
+class BatchStreamRequest(BaseModel):
+    citations: list[dict]
+    depth: str
 
 
 # ------------------------------------------------------------------------------
@@ -365,7 +380,8 @@ async def run_pipeline(
         yield make_event("phase3_complete", data={
             "verdict": result.get("verdict", "ERROR"),
             "confidence": result.get("confidence"),
-            "reasoning": result.get("reasoning", "")
+            "reasoning": result.get("reasoning", ""),
+            "backend_used": result.get("backend_used")
         })
         await asyncio.sleep(0)
 
@@ -493,3 +509,152 @@ async def verify(request: VerifyRequest):
             result["error"] = e.get("message")
 
     return result
+
+
+@app.post("/batch/propositions")
+async def batch_propositions(request: BatchPropositionsRequest):
+    """
+    Generate proposition suggestions for multiple citations in a single request.
+    Calls suggest_propositions_batch() from document_parser.py.
+    """
+    from document_parser import suggest_propositions_batch
+
+    # Convert request citations to the format expected by suggest_propositions_batch
+    citations_list = [
+        {
+            "citation_text": c.citation_text,
+            "context_snippet": c.context_snippet,
+        }
+        for c in request.citations
+    ]
+
+    # Generate propositions for all citations
+    propositions = await suggest_propositions_batch(citations_list)
+
+    # Build response
+    return {
+        "propositions": propositions,
+        "total_citations": len(request.citations),
+        "backend_used_count": sum(
+            1 for p in propositions if p.get("backend_used") == "ollama"
+        ),
+    }
+
+
+@app.post("/batch/stream")
+async def batch_stream(request: BatchStreamRequest):
+    """
+    Stream verification results for multiple citations.
+    Uses raw StreamingResponse with text/event-stream.
+    """
+    async def stream_citations():
+        total = len(request.citations)
+        start_time = time.time()
+
+        # Batch start event
+        yield make_event("batch_start", total=total)
+        await asyncio.sleep(0)
+
+        for i, citation in enumerate(request.citations):
+            citation_text = citation.get("citation_text", "").strip()
+            proposition = citation.get("proposition", "").strip()
+
+            # Batch progress event
+            yield make_event("batch_progress", current=i+1, total=total)
+            await asyncio.sleep(0)
+
+            # Run pipeline with depth control
+            quoted_text = None
+            if request.depth in ("quotes", "full"):
+                quoted_text = None  # Batch stream doesn't include quoted_text
+
+            # Stream pipeline results for this citation
+            async for raw in run_pipeline(citation_text, quoted_text, proposition):
+                # Send directly to client
+                yield raw
+                await asyncio.sleep(0)
+
+            # Heartbeat every 3 seconds during long calls
+            elapsed = time.time() - start_time
+            if elapsed > 3 and request.depth == "full":
+                yield make_event("heartbeat")
+                await asyncio.sleep(0)
+
+        # Batch done event
+        duration = round(time.time() - start_time, 2)
+        yield make_event("batch_done", total=total, duration=duration)
+
+    return StreamingResponse(
+        stream_citations(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        }
+    )
+
+
+@app.get("/upload", response_class=HTMLResponse)
+async def upload_page(request: Request):
+    """Serve the document upload form."""
+    return templates.TemplateResponse(
+        request=request,
+        name="upload.html"
+    )
+
+
+@app.post("/upload/parse")
+async def parse_upload_file(file: UploadFile = File(...)):
+    """
+    Parse an uploaded document and extract citations with context.
+    Enforces 50MB file size limit.
+    Returns JSON with extraction results.
+    """
+    from document_parser import extract_text, extract_citations_with_context
+
+    # Check file size
+    file_size = 0
+    chunks = []
+    try:
+        for chunk in file.file:
+            file_size += len(chunk)
+            chunks.append(chunk)
+            if file_size > MAX_UPLOAD_SIZE:
+                raise ValueError(
+                    f"File too large: {file_size / (1024 * 1024):.2f}MB exceeds 50MB limit"
+                )
+    except Exception as e:
+        raise ValueError(f"Error reading file: {e}")
+
+    file.file.seek(0)  # Reset file pointer after reading chunks
+    file_bytes = b''.join(chunks)
+
+    try:
+        # Extract text from file
+        text_result = extract_text(file_bytes, file.filename)
+
+        # Extract citations with context
+        citations = extract_citations_with_context(
+            text_result["text"],
+            text_result["page_boundaries"]
+        )
+
+        # Build response
+        response = {
+            "filename": file.filename,
+            "page_count": text_result["page_count"],
+            "citation_count": len(citations),
+            "citations": citations,
+            "chunked": True,
+            "total_pages": text_result["page_count"],
+        }
+
+        return response
+
+    except ValueError as e:
+        raise ValueError(str(e))
+    except RuntimeError as e:
+        raise ValueError(f"Extraction failed: {e}")
+    except Exception as e:
+        raise ValueError(f"Unexpected error: {e}")

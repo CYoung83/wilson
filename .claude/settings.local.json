@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "mcp__github__search_repositories",
+      "Bash(ls -la /c/wilson/v0.1.0/.env*)",
+      "Bash(cmd:*)",
+      "Bash(./venv/Scripts/python.exe -c ':*)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Users/Chris/AppData/Local/Wilson//**)",
+      "Read(//c/wilson//**)",
+      "Bash(powershell:*)",
+      "Bash(.\\\\venv\\\\Scripts\\\\pip.exe install:*)",
+      "Bash(./venv/Scripts/pip.exe install:*)",
+      "Bash(python:*)",
+      "Bash(mkdir -p tests)",
+      "Bash(touch tests/__init__.py)",
+      "Bash(C:/wilson/v0.1.0/venv/Scripts/pip.exe install:*)",
+      "Bash(./venv/Scripts/python.exe:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(.\\\\venv\\\\Scripts\\\\python.exe -m pytest tests/test_document_parser.py -v)",
+      "Bash(C:\\\\wilson\\\\v0.1.0\\\\venv\\\\Scripts\\\\python.exe:*)",
+      "Bash(.\\\\venv\\\\Scripts\\\\python.exe -m pytest tests/test_document_parser.py -k \"citations\" -v)",
+      "Bash(find . -type d -name __pycache__ -exec rm -rf {} +)",
+      "Bash(find . -name \"*.pyc\" -delete)",
+      "Bash(.\\\\venv\\\\Scripts\\\\python.exe:*)",
+      "Bash(curl -s http://localhost:8000/upload)",
+      "Bash(curl:*)",
+      "Bash(find . -type d -name \"__pycache__\" -exec rm -rf {} +)"
+    ]
+  }
+}

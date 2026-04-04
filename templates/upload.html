@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wilson -- Document Upload</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 960px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 1.25rem;
+            border-bottom: 1px solid #1a1a1a;
+            padding-bottom: 1rem;
+            display: flex;
+            align-items: baseline;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+        }
+
+        header h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.5px;
+        }
+
+        .form-panel {
+            background: #111;
+            border: 1px solid #1e1e1e;
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .form-panel h2 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #3a3a3a;
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 0.3rem;
+            margin-top: 0.85rem;
+        }
+
+        label:first-of-type { margin-top: 0; }
+
+        .opt { color: #2e2e2e; font-size: 0.7rem; margin-left: 0.4rem; }
+
+        input[type="file"] {
+            width: 100%;
+            background: #0a0a0a;
+            border: 2px dashed #252525;
+            border-radius: 4px;
+            color: #888;
+            padding: 1.5rem;
+            font-size: 0.86rem;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+
+        input[type="file"]:hover {
+            border-color: #333;
+            color: #aaa;
+        }
+
+        input[type="file"]:focus {
+            outline: none;
+            border-color: #4caf50;
+            color: #e0e0e0;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        button {
+            flex: 1;
+            padding: 0.65rem;
+            background: #161616;
+            border: 1px solid #252525;
+            border-radius: 5px;
+            color: #ccc;
+            font-size: 0.86rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        button:hover  { background: #1e1e1e; border-color: #333; }
+        button:active { background: #0f0f0f; }
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .btn-secondary {
+            background: #0a0a0a;
+            border-color: #333;
+        }
+
+        .btn-primary {
+            background: #0d2a0d;
+            border-color: #1a4a1a;
+            color: #4caf50;
+        }
+
+        .btn-primary:hover {
+            background: #1a4a1a;
+            border-color: #2d7a2d;
+            color: #4caf50;
+        }
+
+        .error-block {
+            background: #160808;
+            border: 1px solid #3a1515;
+            border-radius: 6px;
+            padding: 0.85rem;
+            color: #cc3333;
+            font-size: 0.8rem;
+            line-height: 1.55;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .success-block {
+            background: #0a1a0a;
+            border: 1px solid #1a4a1a;
+            border-radius: 6px;
+            padding: 1rem;
+            color: #4caf50;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .banner {
+            background: #1a0a1a;
+            border: 1px solid #3a1515;
+            border-radius: 6px;
+            padding: 0.75rem;
+            color: #ff6666;
+            font-size: 0.8rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        /* Step 2 - Depth Selector */
+        .step-section {
+            display: none;
+            animation: fadeUp 0.3s ease;
+        }
+
+        .step-section.active {
+            display: block;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .depth-options {
+            margin: 1rem 0;
+        }
+
+        .depth-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: #0a0a0a;
+            border: 1px solid #1e1e1e;
+            border-radius: 6px;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .depth-option:hover {
+            border-color: #333;
+        }
+
+        .depth-option.selected {
+            border-color: #4caf50;
+            background: #0d1a0d;
+        }
+
+        .depth-option input[type="radio"] {
+            margin-top: 0.25rem;
+            accent-color: #4caf50;
+            transform: scale(1.1);
+        }
+
+        .depth-label {
+            flex: 1;
+            margin-top: 0.1rem;
+        }
+
+        .depth-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-bottom: 0.25rem;
+        }
+
+        .depth-desc {
+            font-size: 0.75rem;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .step-nav {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .step-nav button {
+            flex: 0 0 auto;
+        }
+
+        /* Step 3 - Proposition Review Queue */
+        .queue-header {
+            margin-bottom: 1rem;
+        }
+
+        .queue-header h2 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #3a3a3a;
+            margin-bottom: 0.5rem;
+        }
+
+        .queue-tally {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .queue-tally strong {
+            color: #4caf50;
+        }
+
+        .citation-row {
+            background: #0a0a0a;
+            border: 1px solid #1e1e1e;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .citation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+
+        .citation-text {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #e0e0e0;
+            flex: 1;
+        }
+
+        .status-badge {
+            font-size: 0.7rem;
+            padding: 0.15rem 0.6rem;
+            border-radius: 999px;
+            border: 1px solid;
+            white-space: nowrap;
+            margin-left: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .status-badge.pending {
+            border-color: #4a4a4a;
+            background: #161616;
+            color: #888;
+        }
+
+        .status-badge.accepted {
+            border-color: #1a4a1a;
+            background: #0d2a0d;
+            color: #4caf50;
+        }
+
+        .status-badge.rewritten {
+            border-color: #4a3a1a;
+            background: #2a1f0d;
+            color: #ff9800;
+        }
+
+        .status-badge.skipped {
+            border-color: #3a3a3a;
+            background: #111;
+            color: #666;
+        }
+
+        .context-toggle {
+            font-size: 0.75rem;
+            color: #4caf50;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            user-select: none;
+        }
+
+        .context-toggle:hover {
+            color: #6bbf6b;
+        }
+
+        .context-toggle.hidden {
+            display: none;
+        }
+
+        .context-snippet {
+            background: #111;
+            border: 1px solid #1e1e1e;
+            border-radius: 4px;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            font-size: 0.75rem;
+            color: #888;
+            line-height: 1.5;
+            display: none;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .context-snippet.visible {
+            display: block;
+        }
+
+        .proposition-input {
+            width: 100%;
+            background: #0a0a0a;
+            border: 1px solid #252525;
+            border-radius: 4px;
+            color: #e0e0e0;
+            padding: 0.55rem 0.7rem;
+            font-size: 0.8rem;
+            font-family: inherit;
+            margin-top: 0.5rem;
+            transition: border-color 0.15s;
+        }
+
+        .proposition-input:focus {
+            outline: none;
+            border-color: #4caf50;
+        }
+
+        .proposition-input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .proposition-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .queue-btn {
+            flex: 1;
+            padding: 0.5rem;
+            background: #161616;
+            border: 1px solid #252525;
+            border-radius: 4px;
+            color: #ccc;
+            font-size: 0.75rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .queue-btn:hover:not(:disabled) {
+            background: #1e1e1e;
+            border-color: #333;
+        }
+
+        .queue-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .queue-btn.accept {
+            border-color: #1a4a1a;
+            color: #4caf50;
+        }
+
+        .queue-btn.accept:hover:not(:disabled) {
+            background: #1a4a1a;
+        }
+
+        .queue-btn.rewrite {
+            border-color: #4a3a1a;
+            color: #ff9800;
+        }
+
+        .queue-btn.rewrite:hover:not(:disabled) {
+            background: #4a3a1a;
+        }
+
+        .queue-btn.skip {
+            border-color: #3a3a3a;
+            color: #666;
+        }
+
+        .queue-btn.skip:hover:not(:disabled) {
+            background: #3a3a3a;
+        }
+
+        .queue-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #1e1e1e;
+        }
+
+        .queue-btn-back {
+            flex: 0 0 auto;
+            padding: 0.65rem 1rem;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            color: #888;
+        }
+
+        .queue-btn-back:hover {
+            border-color: #555;
+            color: #aaa;
+        }
+
+        .queue-btn-run {
+            flex: 1;
+            padding: 0.65rem 2rem;
+        }
+
+        /* Step 4 - Batch Stream */
+        .progress-section {
+            margin-bottom: 1rem;
+        }
+
+        .progress-track {
+            height: 6px;
+            background: #161616;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+            border: 1px solid #1e1e1e;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: linear-gradient(90deg, #1a4a1a, #2d7a2d, #1a4a1a);
+            background-size: 200% 100%;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        .progress-fill.active {
+            animation: shimmer 1.4s infinite linear;
+        }
+
+        @keyframes shimmer {
+            0%   { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .progress-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .progress-log {
+            font-size: 0.74rem;
+            color: #3a3a3a;
+            font-family: monospace;
+            line-height: 1.7;
+        }
+
+        .progress-log .log-active { color: #666; }
+        .progress-log .log-done   { color: #2a2a2a; }
+
+        .timer-display {
+            font-size: 0.72rem;
+            color: #2a2a2a;
+            font-family: monospace;
+            white-space: nowrap;
+        }
+
+        .status-line {
+            background: #0a0a0a;
+            border: 1px solid #1e1e1e;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.75rem;
+            color: #888;
+            line-height: 1.5;
+        }
+
+        .status-line.verdict {
+            border-color: #4a4a4a;
+            color: #e0e0e0;
+            font-size: 0.7rem;
+            padding: 0.5rem 0.75rem;
+        }
+
+        .status-line.verdict.green { border-color: #1a4a1a; background: #0d2a0d; }
+        .status-line.verdict.red { border-color: #4a1a1a; background: #2a0d0d; }
+        .status-line.verdict.orange { border-color: #4a3a1a; background: #2a1f0d; }
+        .status-line.verdict.grey { border-color: #222; background: #111; }
+
+        .batch-status {
+            margin-bottom: 1rem;
+        }
+
+        .batch-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #1e1e1e;
+        }
+
+        .cancel-btn {
+            flex: 0 0 auto;
+            padding: 0.65rem 1rem;
+            background: #160808;
+            border: 1px solid #3a1515;
+            color: #cc3333;
+        }
+
+        .cancel-btn:hover {
+            border-color: #5a1a1a;
+        }
+
+        .warning-text {
+            font-size: 0.7rem;
+            color: #ff9800;
+            display: none;
+            margin-top: 0.5rem;
+        }
+
+        .warning-text.soft {
+            color: #4caf50;
+        }
+
+        .warning-text.hard {
+            color: #cc3333;
+        }
+
+        .warning-text.visible {
+            display: block;
+        }
+
+        /* Step 5 - Summary Table */
+        .summary-section {
+            margin-top: 1.5rem;
+        }
+
+        .summary-section h2 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #3a3a3a;
+            margin-bottom: 1rem;
+        }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.7rem;
+        }
+
+        .summary-table th {
+            text-align: left;
+            padding: 0.5rem 0.75rem;
+            color: #888;
+            font-weight: 600;
+            border-bottom: 1px solid #1e1e1e;
+        }
+
+        .summary-table td {
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid #1e1e1e;
+            vertical-align: top;
+        }
+
+        .summary-table .citation-cell {
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+
+        .summary-table .verdict-cell {
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.65rem;
+            text-align: center;
+        }
+
+        .summary-table .expand-toggle {
+            color: #4caf50;
+            cursor: pointer;
+            user-select: none;
+            font-size: 0.7rem;
+        }
+
+        .summary-table .expand-toggle:hover {
+            color: #6bbf6b;
+        }
+
+        .summary-row-details {
+            background: #0a0a0a;
+            border-radius: 4px;
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
+        .summary-row-details.show {
+            display: block;
+        }
+
+        .reasoning {
+            font-size: 0.7rem;
+            color: #888;
+            line-height: 1.5;
+            margin-bottom: 0.5rem;
+        }
+
+        .passage {
+            font-size: 0.65rem;
+            color: #666;
+            line-height: 1.4;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .glossary {
+            font-size: 0.65rem;
+            color: #444;
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: #0a0a0a;
+            border: 1px solid #1e1e1e;
+            border-radius: 6px;
+        }
+
+        .glossary h3 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #3a3a3a;
+            margin-bottom: 0.75rem;
+        }
+
+        .glossary ul {
+            list-style: none;
+        }
+
+        .glossary li {
+            font-size: 0.65rem;
+            color: #555;
+            line-height: 1.8;
+            padding: 0.15rem 0;
+        }
+
+        .glossary li strong {
+            color: #666;
+        }
+
+        footer {
+            margin-top: 2.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #141414;
+            font-size: 0.68rem;
+            color: #252525;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        footer a { color: #2e2e2e; text-decoration: none; }
+        footer a:hover { color: #555; }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <header>
+            <h1>Document Upload</h1>
+            <span class="tagline">Upload a legal document to analyze citations</span>
+        </header>
+
+        <!-- Step 1: File Upload -->
+        <div class="form-panel" id="step1">
+            <h2>Upload Document</h2>
+
+            <div class="form-group">
+                <label for="file">Select File</label>
+                <input
+                    type="file"
+                    id="file"
+                    name="file"
+                    accept=".pdf,.docx,.txt"
+                    required
+                />
+            </div>
+
+            <div class="info-box">
+                <div style="font-size: 0.8rem; color: #666;">
+                    <strong>Supported formats:</strong> .pdf, .docx, .txt<br/>
+                    <strong>Max size:</strong> 50MB
+                </div>
+            </div>
+
+            <div id="error" class="error-block"></div>
+            <div id="success" class="success-block"></div>
+
+            <div class="btn-row">
+                <button type="submit" id="submitBtn">Analyze Document</button>
+            </div>
+        </div>
+
+        <!-- Step 2: Depth Selector -->
+        <div class="form-panel step-section" id="step2">
+            <h2>Analysis Depth</h2>
+
+            <div class="success-block" id="parseSuccess">
+                <strong>Document parsed successfully!</strong>
+                <span id="citationsCount"></span>
+            </div>
+
+            <label>Analysis Depth</label>
+
+            <div class="depth-options">
+                <label class="depth-option" id="opt-existence">
+                    <input
+                        type="radio"
+                        name="depth"
+                        value="existence"
+                        checked
+                    />
+                    <div class="depth-label">
+                        <div class="depth-title">Existence only</div>
+                        <div class="depth-desc">Check if citations exist in CourtListener and local database.</div>
+                    </div>
+                </label>
+
+                <label class="depth-option" id="opt-quotes">
+                    <input
+                        type="radio"
+                        name="depth"
+                        value="quotes"
+                    />
+                    <div class="depth-label">
+                        <div class="depth-title">Existence + Quotes</div>
+                        <div class="depth-desc">Verify quote language against full opinion text.</div>
+                    </div>
+                </label>
+
+                <label class="depth-option" id="opt-full">
+                    <input
+                        type="radio"
+                        name="depth"
+                        value="full"
+                    />
+                    <div class="depth-label">
+                        <div class="depth-title">Full audit</div>
+                        <div class="depth-desc">Complete analysis including coherence checking.</div>
+                    </div>
+                </label>
+            </div>
+
+            <div class="step-nav">
+                <button type="button" id="cancelBtn" class="btn-secondary">Cancel</button>
+                <button type="button" id="continueBtn">Continue</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Proposition Review Queue -->
+        <div class="form-panel step-section" id="step3">
+            <div class="queue-header">
+                <h2>Proposition Review</h2>
+                <div class="queue-tally">
+                    <span id="tallyText">0 accepted · 0 rewritten · 0 skipped · <span id="pendingCount">0</span> pending</span>
+                </div>
+            </div>
+
+            <div id="queueContainer"></div>
+
+            <div class="queue-actions">
+                <button type="button" id="backBtn" class="queue-btn-back">Back</button>
+                <button type="button" id="runAuditBtn" class="queue-btn run disabled">Run Audit</button>
+            </div>
+        </div>
+
+        <!-- Step 4: Batch Stream -->
+        <div class="form-panel step-section" id="step4">
+            <h2>Batch Run</h2>
+
+            <div id="batchStatus" class="batch-status" style="display: none;">
+                <div class="progress-section">
+                    <div class="progress-track">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-meta">
+                        <div class="progress-log" id="progressLog"></div>
+                        <div class="timer-display" id="timerDisplay">0.0s</div>
+                    </div>
+                </div>
+
+                <div id="statusLines"></div>
+
+                <div class="warning-text" id="softWarning">Still working...</div>
+                <div class="warning-text" id="hardWarning">No response from server</div>
+            </div>
+
+            <div class="batch-controls">
+                <button type="button" id="backBtn4" class="cancel-btn">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Step 5: Summary Table -->
+        <div class="form-panel step-section" id="step5">
+            <div class="summary-section">
+                <h2>Summary</h2>
+                <table class="summary-table" id="summaryTable">
+                    <thead>
+                        <tr>
+                            <th>Citation</th>
+                            <th>Phase 1</th>
+                            <th>Phase 2</th>
+                            <th>Phase 3</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="summaryTableBody">
+                    </tbody>
+                </table>
+
+                <div class="glossary">
+                    <h3>Verdict Glossary</h3>
+                    <ul>
+                        <li><strong>FABRICATED:</strong> Does not exist in any federal court record</li>
+                        <li><strong>MISATTRIBUTED:</strong> Coordinates belong to a different case</li>
+                        <li><strong>EXISTS:</strong> Citation verified</li>
+                        <li><strong>NOT FOUND:</strong> Quoted language not found in opinion</li>
+                        <li><strong>SUPPORTS:</strong> Case supports this argument</li>
+                        <li><strong>DOES_NOT_SUPPORT:</strong> Case does not support this argument</li>
+                        <li><strong>UNCERTAIN:</strong> Relationship unclear</li>
+                        <li><strong>SKIPPED:</strong> Not checked</li>
+                        <li><strong>ERROR:</strong> Verification failed</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // State
+        let citationsData = [];
+        let depth = 'existence';
+        let tally = { accepted: 0, rewritten: 0, skipped: 0, pending: 0 };
+        let es = null;
+        let timerInterval = null;
+        let lastActivity = Date.now();
+        let summaryData = [];
+
+        document.getElementById('submitBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const file = document.getElementById('file').files[0];
+            const errorDiv = document.getElementById('error');
+            const successDiv = document.getElementById('success');
+            const submitBtn = document.getElementById('submitBtn');
+
+            if (!file) {
+                showError('Please select a file to upload.');
+                return;
+            }
+
+            // Reset UI
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Analyzing...';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload/parse', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                citationsData = data.citations || [];
+                depth = document.querySelector('input[name="depth"]:checked')?.value || 'existence';
+
+                // Show success with citation count
+                const citationText = `Found ${data.citation_count} citation${data.citation_count !== 1 ? 's' : ''} in ${data.filename}`;
+                document.getElementById('citationsCount').textContent = citationText;
+                successDiv.style.display = 'block';
+
+                // Switch to Step 2
+                document.getElementById('step1').style.display = 'none';
+                document.getElementById('step2').classList.add('active');
+
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Analyze Document';
+            }
+        });
+
+        document.getElementById('cancelBtn').addEventListener('click', () => {
+            // Clear form and return to Step 1
+            document.getElementById('file').value = '';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('success').style.display = 'none';
+            document.getElementById('step2').classList.remove('active');
+            document.getElementById('step3').style.display = 'none';
+            document.getElementById('step4').style.display = 'none';
+            document.getElementById('step5').style.display = 'none';
+        });
+
+        document.getElementById('continueBtn').addEventListener('click', async () => {
+            depth = document.querySelector('input[name="depth"]:checked')?.value || 'existence';
+
+            if (depth === 'full') {
+                // Load propositions for Step 3
+                await loadPropositions();
+                document.getElementById('step2').classList.remove('active');
+                document.getElementById('step3').style.display = 'block';
+            } else {
+                // Skip to Step 4 for existence and quotes
+                document.getElementById('step2').classList.remove('active');
+                document.getElementById('step3').style.display = 'none';
+                document.getElementById('step4').style.display = 'block';
+            }
+        });
+
+        async function loadPropositions() {
+            const queueContainer = document.getElementById('queueContainer');
+            queueContainer.innerHTML = '';
+
+            const btn = document.getElementById('runAuditBtn');
+            btn.disabled = true;
+            btn.textContent = 'Loading propositions...';
+
+            const citationsPayload = citationsData.map(c => ({
+                citation_text: c.citation_text,
+                context_snippet: c.context_snippet
+            }));
+
+            try {
+                const response = await fetch('/batch/propositions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ citations: citationsPayload })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load propositions');
+                }
+
+                const data = await response.json();
+
+                // Render each citation row
+                citationsData.forEach((citation, index) => {
+                    const proposition = data.propositions[index] || null;
+
+                    const row = document.createElement('div');
+                    row.className = 'citation-row';
+                    row.id = `citation-${index}`;
+
+                    row.innerHTML = `
+                        <div class="citation-header">
+                            <div class="citation-text">${citation.citation_text}</div>
+                            <span class="status-badge pending" id="status-${index}">Pending</span>
+                        </div>
+                        <div class="context-toggle" id="toggle-${index}">View context</div>
+                        <div class="context-snippet" id="context-${index}">${citation.context_snippet}</div>
+                        <textarea
+                            class="proposition-input"
+                            id="proposition-${index}"
+                            placeholder="${citation.citation_text}"
+                            disabled
+                        ></textarea>
+                        <div class="proposition-actions">
+                            <button class="queue-btn accept" id="accept-${index}" disabled>Accept</button>
+                            <button class="queue-btn rewrite" id="rewrite-${index}" disabled>Rewrite</button>
+                            <button class="queue-btn skip" id="skip-${index}" disabled>Skip</button>
+                        </div>
+                    `;
+
+                    queueContainer.appendChild(row);
+
+                    // Add click handler for context toggle
+                    const toggleBtn = row.querySelector(`#toggle-${index}`);
+                    const contextSnippet = row.querySelector(`#context-${index}`);
+                    toggleBtn.addEventListener('click', () => {
+                        contextSnippet.classList.toggle('visible');
+                        toggleBtn.classList.toggle('hidden');
+                        toggleBtn.textContent = contextSnippet.classList.contains('visible') ? 'Hide context' : 'View context';
+                    });
+
+                    // Populate proposition if available
+                    if (proposition && proposition.proposition) {
+                        const textarea = row.querySelector(`#proposition-${index}`);
+                        textarea.value = proposition.proposition;
+                        textarea.disabled = false;
+                        row.querySelector(`#accept-${index}`).disabled = false;
+                        row.querySelector(`#rewrite-${index}`).disabled = false;
+                        row.querySelector(`#skip-${index}`).disabled = false;
+
+                        const badge = row.querySelector(`#status-${index}`);
+                        badge.className = 'status-badge accepted';
+                        badge.textContent = 'Pending';
+                        tally.pending++;
+                    }
+
+                    // Add click handlers for action buttons
+                    const acceptBtn = row.querySelector(`#accept-${index}`);
+                    const rewriteBtn = row.querySelector(`#rewrite-${index}`);
+                    const skipBtn = row.querySelector(`#skip-${index}`);
+                    const textarea = row.querySelector(`#proposition-${index}`);
+                    const badge = row.querySelector(`#status-${index}`);
+
+                    acceptBtn.addEventListener('click', () => {
+                        textarea.disabled = true;
+                        acceptBtn.disabled = true;
+                        rewriteBtn.disabled = true;
+                        skipBtn.disabled = true;
+                        badge.className = 'status-badge accepted';
+                        badge.textContent = 'Accepted';
+                        tally.accepted++;
+                        tally.pending--;
+                        updateTally();
+                        updateRunButton();
+                    });
+
+                    rewriteBtn.addEventListener('click', () => {
+                        textarea.disabled = true;
+                        acceptBtn.disabled = true;
+                        rewriteBtn.disabled = true;
+                        skipBtn.disabled = true;
+                        badge.className = 'status-badge rewritten';
+                        badge.textContent = 'Rewritten';
+                        tally.rewritten++;
+                        tally.pending--;
+                        updateTally();
+                        updateRunButton();
+                    });
+
+                    skipBtn.addEventListener('click', () => {
+                        textarea.disabled = true;
+                        acceptBtn.disabled = true;
+                        rewriteBtn.disabled = true;
+                        skipBtn.disabled = true;
+                        badge.className = 'status-badge skipped';
+                        badge.textContent = 'Skipped';
+                        tally.skipped++;
+                        tally.pending--;
+                        updateTally();
+                        updateRunButton();
+                    });
+                });
+
+                btn.textContent = 'Run Audit';
+                updateRunButton();
+
+            } catch (err) {
+                showError('Failed to load propositions');
+            }
+        }
+
+        function updateTally() {
+            document.getElementById('tallyText').textContent =
+                `${tally.accepted} accepted · ${tally.rewritten} rewritten · ${tally.skipped} skipped · <span id="pendingCount">${tally.pending}</span> pending`;
+        }
+
+        function updateRunButton() {
+            const btn = document.getElementById('runAuditBtn');
+            const hasActioned = tally.accepted > 0 || tally.rewritten > 0 || tally.skipped > 0;
+            btn.disabled = !hasActioned;
+        }
+
+        document.getElementById('backBtn').addEventListener('click', () => {
+            // Return to Step 2 silently without losing state
+            document.getElementById('step3').style.display = 'none';
+            document.getElementById('step2').classList.add('active');
+        });
+
+        document.getElementById('runAuditBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('runAuditBtn');
+            btn.disabled = true;
+            btn.textContent = 'Running Audit...';
+
+            // Collect all citations with their status
+            const citations = citationsData.map((citation, index) => {
+                const textarea = document.getElementById(`proposition-${index}`);
+                const badge = document.getElementById(`status-${index}`);
+                const status = badge.textContent.toLowerCase();
+                return {
+                    citation_text: citation.citation_text,
+                    proposition: textarea ? textarea.value : citation.citation_text,
+                    status: status
+                };
+            });
+
+            // Setup progress UI
+            const batchStatus = document.getElementById('batchStatus');
+            const progressFill = document.getElementById('progressFill');
+            const progressLog = document.getElementById('progressLog');
+            const timerDisplay = document.getElementById('timerDisplay');
+            const statusLines = document.getElementById('statusLines');
+            const softWarning = document.getElementById('softWarning');
+            const hardWarning = document.getElementById('hardWarning');
+
+            batchStatus.style.display = 'block';
+            progressFill.classList.add('active');
+            progressFill.style.width = '0%';
+            progressLog.innerHTML = '';
+            timerDisplay.textContent = '0.0s';
+            statusLines.innerHTML = '';
+            softWarning.classList.remove('visible');
+            hardWarning.classList.remove('visible');
+
+            // Timer
+            let startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                timerDisplay.textContent = elapsed + 's';
+            }, 100);
+
+            // Activity tracker
+            lastActivity = Date.now();
+            const activityCheck = setInterval(() => {
+                const silence = (Date.now() - lastActivity) / 1000;
+                if (silence > 30) {
+                    hardWarning.classList.add('visible');
+                } else if (silence > 10) {
+                    softWarning.classList.add('visible');
+                }
+            }, 1000);
+
+            // Open SSE connection
+            const eventSource = new EventSource(`/batch/stream?citations=${encodeURIComponent(JSON.stringify(citations))}&depth=${depth}`);
+
+            eventSource.onmessage = (event) => {
+                lastActivity = Date.now();
+                softWarning.classList.remove('visible');
+                hardWarning.classList.remove('visible');
+
+                try {
+                    const data = JSON.parse(event.data);
+                    const type = data.type;
+
+                    if (type === 'batch_start') {
+                        const total = data.total;
+                        progressLog.innerHTML = `<span class="log-active">Starting batch (${total} citations)</span>`;
+                    }
+
+                    else if (type === 'batch_progress') {
+                        const current = data.current;
+                        const total = data.total;
+                        progressFill.style.width = `${(current / total) * 100}%`;
+                        progressLog.innerHTML = `<span class="log-active">Processing citation ${current} of ${total}</span>`;
+                    }
+
+                    else if (type === 'parsed') {
+                        progressLog.innerHTML = `<span class="log-active">Citation parsed</span>`;
+                    }
+
+                    else if (type === 'phase1_start') {
+                        progressLog.innerHTML = `<span class="log-active">Phase 1: Checking whether citation exists...</span>`;
+                        const statusLine = document.createElement('div');
+                        statusLine.className = 'status-line';
+                        statusLine.id = 'phase1-line';
+                        statusLine.textContent = 'Checking whether citation exists...';
+                        statusLines.appendChild(statusLine);
+                    }
+
+                    else if (type === 'phase1_complete') {
+                        const verdict = data.data.verdict;
+                        const caseName = data.data.case_name || '';
+                        const line = document.getElementById('phase1-line');
+                        if (line) {
+                            line.className = 'status-line verdict ' + verdictClass(verdict);
+                            line.textContent = `${verdict}: ${caseName || 'Citation verified'}`;
+                        }
+                    }
+
+                    else if (type === 'phase2_start') {
+                        progressLog.innerHTML = `<span class="log-active">Phase 2: Verifying quoted language...</span>`;
+                        const statusLine = document.createElement('div');
+                        statusLine.className = 'status-line';
+                        statusLine.id = 'phase2-line';
+                        statusLine.textContent = 'Verifying quoted language...';
+                        statusLines.appendChild(statusLine);
+                    }
+
+                    else if (type === 'phase2_complete') {
+                        const verdict = data.data.display_verdict || data.data.verdict;
+                        const line = document.getElementById('phase2-line');
+                        if (line) {
+                            line.className = 'status-line verdict ' + verdictClass(verdict);
+                            line.textContent = `${verdict}: Quote verified`;
+                        }
+                    }
+
+                    else if (type === 'phase3_start') {
+                        progressLog.innerHTML = `<span class="log-active">Phase 3: Reading opinion for context...</span>`;
+                        const statusLine = document.createElement('div');
+                        statusLine.className = 'status-line';
+                        statusLine.id = 'phase3-line';
+                        statusLine.textContent = 'Reading opinion for context...';
+                        statusLines.appendChild(statusLine);
+                    }
+
+                    else if (type === 'phase3_complete') {
+                        const verdict = data.data.verdict;
+                        const line = document.getElementById('phase3-line');
+                        if (line) {
+                            line.className = 'status-line verdict ' + verdictClass(verdict);
+                            line.textContent = `${verdict}: Coherence check complete`;
+                        }
+                    }
+
+                    else if (type === 'heartbeat') {
+                        // Heartbeat handled by activity tracker
+                    }
+
+                    else if (type === 'batch_done') {
+                        clearInterval(timerInterval);
+                        clearInterval(activityCheck);
+                        progressFill.classList.remove('active');
+                        progressLog.innerHTML = `<span class="log-done">Batch complete</span>`;
+                        progressFill.style.width = '100%';
+                        eventSource.close();
+
+                        setTimeout(() => {
+                            document.getElementById('step4').style.display = 'none';
+                            document.getElementById('step5').style.display = 'block';
+                            renderSummary();
+                        }, 500);
+                    }
+
+                    else if (type === 'unparseable') {
+                        progressLog.innerHTML = `<span class="log-done">Could not parse citation</span>`;
+                    }
+
+                } catch (e) {
+                    console.error('Error parsing SSE data:', e);
+                }
+            };
+
+            eventSource.onerror = () => {
+                clearInterval(timerInterval);
+                clearInterval(activityCheck);
+                eventSource.close();
+                progressFill.classList.remove('active');
+                hardWarning.classList.add('visible');
+                setTimeout(() => {
+                    document.getElementById('step4').style.display = 'none';
+                    document.getElementById('step5').style.display = 'block';
+                    renderSummary();
+                }, 500);
+            };
+        });
+
+        function verdictClass(v) {
+            if (!v) return 'grey';
+            if (['EXISTS', 'SUPPORTS'].includes(v) || v.includes('MATCH')) return 'green';
+            if (['FABRICATED', 'DOES_NOT_SUPPORT', 'NOT_FOUND'].includes(v)) return 'red';
+            if (['MISATTRIBUTED', 'UNCERTAIN'].includes(v)) return 'orange';
+            return 'grey';
+        }
+
+        function renderSummary() {
+            const tbody = document.getElementById('summaryTableBody');
+            tbody.innerHTML = '';
+
+            citationsData.forEach((citation, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="citation-cell">${citation.citation_text}</td>
+                    <td class="verdict-cell verdict-${verdictClass(citation.phase1_verdict || 'UNCERTAIN')}">${citation.phase1_verdict || '-'}</td>
+                    <td class="verdict-cell verdict-${verdictClass(citation.phase2_verdict || 'UNCERTAIN')}">${citation.phase2_verdict || '-'}</td>
+                    <td class="verdict-cell verdict-${verdictClass(citation.phase3_verdict || 'UNCERTAIN')}">${citation.phase3_verdict || '-'}</td>
+                    <td><span class="expand-toggle" data-index="${index}">Expand</span></td>
+                `;
+
+                // Add expand handler
+                const expandBtn = tr.querySelector('.expand-toggle');
+                expandBtn.addEventListener('click', () => {
+                    const details = tr.querySelector('.summary-row-details');
+                    const isShowing = details.classList.contains('show');
+                    // Close all others
+                    document.querySelectorAll('.summary-row-details').forEach(d => d.classList.remove('show'));
+                    document.querySelectorAll('.expand-toggle').forEach(t => t.textContent = 'Expand');
+
+                    if (!isShowing) {
+                        details.classList.add('show');
+                        expandBtn.textContent = 'Collapse';
+                    }
+                });
+
+                tbody.appendChild(tr);
+
+                // Add details row
+                const detailsTr = document.createElement('tr');
+                detailsTr.innerHTML = `
+                    <td colspan="5">
+                        <div class="summary-row-details">
+                            <div class="reasoning">Phase 1: ${citation.phase1_reasoning || 'No reasoning available'}</div>
+                            <div class="reasoning">Phase 2: ${citation.phase2_reasoning || 'No reasoning available'}</div>
+                            <div class="reasoning">Phase 3: ${citation.phase3_reasoning || 'No reasoning available'}</div>
+                            <div class="passage">Matched passage: ${citation.matched_passage || 'No passage available'}</div>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(detailsTr);
+            });
+        }
+
+        document.getElementById('backBtn4').addEventListener('click', () => {
+            // Return to Step 3 silently without losing state
+            document.getElementById('step4').style.display = 'none';
+            document.getElementById('step3').style.display = 'block';
+        });
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = `Error: ${message}`;
+            errorDiv.style.display = 'block';
+        }
+
+        // Initialize depth selector
+        document.querySelectorAll('.depth-option').forEach(option => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.depth-option').forEach(o => o.classList.remove('selected'));
+                option.classList.add('selected');
+            });
+        });
+
+        // Initialize depth radio buttons
+        document.querySelectorAll('input[name="depth"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                document.querySelectorAll('.depth-option').forEach(o => o.classList.remove('selected'));
+                const selectedOption = document.querySelector(`#opt-${e.target.value}`);
+                if (selectedOption) selectedOption.classList.add('selected');
+            });
+        });
+    </script>
+</body>
+</html>
