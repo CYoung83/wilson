@@ -228,6 +228,254 @@
             flex: 0 0 auto;
         }
 
+        /* Step 3 - Proposition Review Queue */
+        .queue-header {
+            margin-bottom: 1rem;
+        }
+
+        .queue-header h2 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #3a3a3a;
+            margin-bottom: 0.5rem;
+        }
+
+        .queue-tally {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .queue-tally strong {
+            color: #4caf50;
+        }
+
+        .citation-row {
+            background: #0a0a0a;
+            border: 1px solid #1e1e1e;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .citation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+
+        .citation-text {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #e0e0e0;
+            flex: 1;
+        }
+
+        .status-badge {
+            font-size: 0.7rem;
+            padding: 0.15rem 0.6rem;
+            border-radius: 999px;
+            border: 1px solid;
+            white-space: nowrap;
+            margin-left: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .status-badge.pending {
+            border-color: #4a4a4a;
+            background: #161616;
+            color: #888;
+        }
+
+        .status-badge.accepted {
+            border-color: #1a4a1a;
+            background: #0d2a0d;
+            color: #4caf50;
+        }
+
+        .status-badge.rewritten {
+            border-color: #4a3a1a;
+            background: #2a1f0d;
+            color: #ff9800;
+        }
+
+        .status-badge.skipped {
+            border-color: #3a3a3a;
+            background: #111;
+            color: #666;
+        }
+
+        .context-toggle {
+            font-size: 0.75rem;
+            color: #4caf50;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            user-select: none;
+        }
+
+        .context-toggle:hover {
+            color: #6bbf6b;
+        }
+
+        .context-toggle.hidden {
+            display: none;
+        }
+
+        .context-snippet {
+            background: #111;
+            border: 1px solid #1e1e1e;
+            border-radius: 4px;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            font-size: 0.75rem;
+            color: #888;
+            line-height: 1.5;
+            display: none;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .context-snippet.visible {
+            display: block;
+        }
+
+        .proposition-input {
+            width: 100%;
+            background: #0a0a0a;
+            border: 1px solid #252525;
+            border-radius: 4px;
+            color: #e0e0e0;
+            padding: 0.55rem 0.7rem;
+            font-size: 0.8rem;
+            font-family: inherit;
+            margin-top: 0.5rem;
+            transition: border-color 0.15s;
+        }
+
+        .proposition-input:focus {
+            outline: none;
+            border-color: #4caf50;
+        }
+
+        .proposition-input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .proposition-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .queue-btn {
+            flex: 1;
+            padding: 0.5rem;
+            background: #161616;
+            border: 1px solid #252525;
+            border-radius: 4px;
+            color: #ccc;
+            font-size: 0.75rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .queue-btn:hover:not(:disabled) {
+            background: #1e1e1e;
+            border-color: #333;
+        }
+
+        .queue-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .queue-btn.accept {
+            border-color: #1a4a1a;
+            color: #4caf50;
+        }
+
+        .queue-btn.accept:hover:not(:disabled) {
+            background: #1a4a1a;
+        }
+
+        .queue-btn.rewrite {
+            border-color: #4a3a1a;
+            color: #ff9800;
+        }
+
+        .queue-btn.rewrite:hover:not(:disabled) {
+            background: #4a3a1a;
+        }
+
+        .queue-btn.skip {
+            border-color: #3a3a3a;
+            color: #666;
+        }
+
+        .queue-btn.skip:hover:not(:disabled) {
+            background: #3a3a3a;
+        }
+
+        .queue-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #1e1e1e;
+        }
+
+        .queue-btn-back {
+            flex: 0 0 auto;
+            padding: 0.65rem 1rem;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            color: #888;
+        }
+
+        .queue-btn-back:hover {
+            border-color: #555;
+            color: #aaa;
+        }
+
+        .queue-btn-run {
+            flex: 1;
+            padding: 0.65rem 2rem;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid #4caf50;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 0.75rem;
+            color: #4caf50;
+            display: none;
+            align-items: center;
+        }
+
+        .loading-text.visible {
+            display: flex;
+        }
+
         /* Placeholder divs for future steps */
         .step-placeholder {
             background: #111;
@@ -359,16 +607,27 @@
             </div>
         </div>
 
-        <!-- Step 3: Citation Results (Placeholder) -->
-        <div class="step-placeholder" id="step3">
-            <h3>Step 3: Citation Results</h3>
-            <p>Citation verification results will appear here.</p>
+        <!-- Step 3: Proposition Review Queue -->
+        <div class="form-panel step-section" id="step3">
+            <div class="queue-header">
+                <h2>Proposition Review</h2>
+                <div class="queue-tally">
+                    <span id="tallyText">0 accepted · 0 rewritten · 0 skipped · <span id="pendingCount">0</span> pending</span>
+                </div>
+            </div>
+
+            <div id="queueContainer"></div>
+
+            <div class="queue-actions">
+                <button type="button" id="backBtn" class="queue-btn-back">Back</button>
+                <button type="button" id="runAuditBtn" class="queue-btn run disabled">Run Audit</button>
+            </div>
         </div>
 
-        <!-- Step 4: Proposition Suggestions (Placeholder) -->
+        <!-- Step 4: Citation Results (Placeholder) -->
         <div class="step-placeholder" id="step4">
-            <h3>Step 4: Proposition Suggestions</h3>
-            <p>Legal proposition suggestions will appear here.</p>
+            <h3>Step 4: Citation Results</h3>
+            <p>Citation verification results will appear here.</p>
         </div>
 
         <!-- Step 5: Summary (Placeholder) -->
@@ -380,6 +639,11 @@
     </div>
 
     <script>
+        // State
+        let citationsData = [];
+        let depth = 'existence';
+        let tally = { accepted: 0, rewritten: 0, skipped: 0, pending: 0 };
+
         document.getElementById('submitBtn').addEventListener('click', async (e) => {
             e.preventDefault();
             const file = document.getElementById('file').files[0];
@@ -413,6 +677,8 @@
                 }
 
                 const data = await response.json();
+                citationsData = data.citations || [];
+                depth = document.querySelector('input[name="depth"]:checked')?.value || 'existence';
 
                 // Show success with citation count
                 const citationText = `Found ${data.citation_count} citation${data.citation_count !== 1 ? 's' : ''} in ${data.filename}`;
@@ -437,16 +703,208 @@
             document.getElementById('error').style.display = 'none';
             document.getElementById('success').style.display = 'none';
             document.getElementById('step2').classList.remove('active');
-            document.getElementById('step1').style.display = 'block';
             document.getElementById('step3').style.display = 'none';
             document.getElementById('step4').style.display = 'none';
             document.getElementById('step5').style.display = 'none';
         });
 
-        document.getElementById('continueBtn').addEventListener('click', () => {
-            // Switch to Step 3 (placeholder for now)
-            document.getElementById('step2').classList.remove('active');
-            document.getElementById('step3').style.display = 'block';
+        document.getElementById('continueBtn').addEventListener('click', async () => {
+            depth = document.querySelector('input[name="depth"]:checked')?.value || 'existence';
+
+            if (depth === 'full') {
+                // Load propositions for Step 3
+                await loadPropositions();
+                document.getElementById('step2').classList.remove('active');
+                document.getElementById('step3').style.display = 'block';
+            } else {
+                // Skip to Step 4 for existence and quotes
+                document.getElementById('step2').classList.remove('active');
+                document.getElementById('step3').style.display = 'none';
+                document.getElementById('step4').style.display = 'block';
+            }
+        });
+
+        async function loadPropositions() {
+            const queueContainer = document.getElementById('queueContainer');
+            queueContainer.innerHTML = '';
+
+            const btn = document.getElementById('runAuditBtn');
+            btn.disabled = true;
+            btn.textContent = 'Loading propositions...';
+
+            const citationsPayload = citationsData.map(c => ({
+                citation_text: c.citation_text,
+                context_snippet: c.context_snippet
+            }));
+
+            try {
+                const response = await fetch('/batch/propositions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ citations: citationsPayload })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load propositions');
+                }
+
+                const data = await response.json();
+
+                // Render each citation row
+                citationsData.forEach((citation, index) => {
+                    const proposition = data.propositions[index] || null;
+
+                    const row = document.createElement('div');
+                    row.className = 'citation-row';
+                    row.id = `citation-${index}`;
+
+                    row.innerHTML = `
+                        <div class="citation-header">
+                            <div class="citation-text">${citation.citation_text}</div>
+                            <span class="status-badge pending" id="status-${index}">Pending</span>
+                        </div>
+                        <div class="context-toggle" id="toggle-${index}">View context</div>
+                        <div class="context-snippet" id="context-${index}">${citation.context_snippet}</div>
+                        <textarea
+                            class="proposition-input"
+                            id="proposition-${index}"
+                            placeholder="${citation.citation_text}"
+                            disabled
+                        ></textarea>
+                        <div class="proposition-actions">
+                            <button class="queue-btn accept" id="accept-${index}" disabled>Accept</button>
+                            <button class="queue-btn rewrite" id="rewrite-${index}" disabled>Rewrite</button>
+                            <button class="queue-btn skip" id="skip-${index}" disabled>Skip</button>
+                        </div>
+                    `;
+
+                    queueContainer.appendChild(row);
+
+                    // Add click handler for context toggle
+                    const toggleBtn = row.querySelector(`#toggle-${index}`);
+                    const contextSnippet = row.querySelector(`#context-${index}`);
+                    toggleBtn.addEventListener('click', () => {
+                        contextSnippet.classList.toggle('visible');
+                        toggleBtn.classList.toggle('hidden');
+                        toggleBtn.textContent = contextSnippet.classList.contains('visible') ? 'Hide context' : 'View context';
+                    });
+
+                    // Populate proposition if available
+                    if (proposition && proposition.proposition) {
+                        const textarea = row.querySelector(`#proposition-${index}`);
+                        textarea.value = proposition.proposition;
+                        textarea.disabled = false;
+                        row.querySelector(`#accept-${index}`).disabled = false;
+                        row.querySelector(`#rewrite-${index}`).disabled = false;
+                        row.querySelector(`#skip-${index}`).disabled = false;
+
+                        const badge = row.querySelector(`#status-${index}`);
+                        badge.className = 'status-badge accepted';
+                        badge.textContent = 'Pending';
+                        tally.pending++;
+                    }
+
+                    // Add click handlers for action buttons
+                    const acceptBtn = row.querySelector(`#accept-${index}`);
+                    const rewriteBtn = row.querySelector(`#rewrite-${index}`);
+                    const skipBtn = row.querySelector(`#skip-${index}`);
+                    const textarea = row.querySelector(`#proposition-${index}`);
+                    const badge = row.querySelector(`#status-${index}`);
+
+                    acceptBtn.addEventListener('click', () => {
+                        textarea.disabled = true;
+                        acceptBtn.disabled = true;
+                        rewriteBtn.disabled = true;
+                        skipBtn.disabled = true;
+                        badge.className = 'status-badge accepted';
+                        badge.textContent = 'Accepted';
+                        tally.accepted++;
+                        tally.pending--;
+                        updateTally();
+                        updateRunButton();
+                    });
+
+                    rewriteBtn.addEventListener('click', () => {
+                        textarea.disabled = true;
+                        acceptBtn.disabled = true;
+                        rewriteBtn.disabled = true;
+                        skipBtn.disabled = true;
+                        badge.className = 'status-badge rewritten';
+                        badge.textContent = 'Rewritten';
+                        tally.rewritten++;
+                        tally.pending--;
+                        updateTally();
+                        updateRunButton();
+                    });
+
+                    skipBtn.addEventListener('click', () => {
+                        textarea.disabled = true;
+                        acceptBtn.disabled = true;
+                        rewriteBtn.disabled = true;
+                        skipBtn.disabled = true;
+                        badge.className = 'status-badge skipped';
+                        badge.textContent = 'Skipped';
+                        tally.skipped++;
+                        tally.pending--;
+                        updateTally();
+                        updateRunButton();
+                    });
+                });
+
+                btn.textContent = 'Run Audit';
+                updateRunButton();
+
+            } catch (err) {
+                showError('Failed to load propositions');
+            }
+        }
+
+        function updateTally() {
+            document.getElementById('tallyText').textContent =
+                `${tally.accepted} accepted · ${tally.rewritten} rewritten · ${tally.skipped} skipped · <span id="pendingCount">${tally.pending}</span> pending`;
+        }
+
+        function updateRunButton() {
+            const btn = document.getElementById('runAuditBtn');
+            const hasActioned = tally.accepted > 0 || tally.rewritten > 0 || tally.skipped > 0;
+            btn.disabled = !hasActioned;
+        }
+
+        document.getElementById('backBtn').addEventListener('click', () => {
+            // Return to Step 2 silently without losing state
+            document.getElementById('step3').style.display = 'none';
+            document.getElementById('step2').classList.add('active');
+        });
+
+        document.getElementById('runAuditBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('runAuditBtn');
+            btn.disabled = true;
+            btn.textContent = 'Running Audit...';
+
+            // Collect all citations with their status
+            const citations = citationsData.map((citation, index) => {
+                const textarea = document.getElementById(`proposition-${index}`);
+                const badge = document.getElementById(`status-${index}`);
+                const status = badge.textContent.toLowerCase();
+                return {
+                    citation_text: citation.citation_text,
+                    proposition: textarea ? textarea.value : citation.citation_text,
+                    status: status
+                };
+            });
+
+            try {
+                // TODO: Call /batch/stream endpoint with the citations
+                // For now, show placeholder message
+                setTimeout(() => {
+                    alert('Audit completed! In a production environment, this would stream verification results for each citation.');
+                    btn.textContent = 'Run Audit';
+                }, 500);
+
+            } catch (err) {
+                showError('Failed to run audit');
+                btn.textContent = 'Run Audit';
+            }
         });
 
         function showError(message) {
@@ -454,6 +912,23 @@
             errorDiv.textContent = `Error: ${message}`;
             errorDiv.style.display = 'block';
         }
+
+        // Initialize depth selector
+        document.querySelectorAll('.depth-option').forEach(option => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.depth-option').forEach(o => o.classList.remove('selected'));
+                option.classList.add('selected');
+            });
+        });
+
+        // Initialize depth radio buttons
+        document.querySelectorAll('input[name="depth"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                document.querySelectorAll('.depth-option').forEach(o => o.classList.remove('selected'));
+                const selectedOption = document.querySelector(`#opt-${e.target.value}`);
+                if (selectedOption) selectedOption.classList.add('selected');
+            });
+        });
     </script>
 </body>
 </html>
