@@ -1496,115 +1496,117 @@
                 }
             }
 
-            // Use POST with fetch instead of EventSource
-            const response = await fetch('/batch/stream', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({citations: citations, depth: depth})
-            });
-
-            if (!response.ok) {
-                throw new Error(`Batch stream error: ${response.status}`);
-            }
-
-            const reader = response.body.getReader();
+            const reader  = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
 
             while (true) {
-                const {done, value} = await reader.read();
+                const { done, value } = await reader.read();
                 if (done) break;
-
-                buffer += decoder.decode(value, {stream: true});
-                const lines = buffer.split('\n\n');
-                buffer = lines.pop() || '';
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
 
                 for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const event = line.slice(6);
-                        const data = JSON.parse(event);
+                    if (!line.startsWith('data: ')) continue;
+                    const raw = line.slice(6).trim();
+                    if (!raw) continue;
+                    let e;
+                    try { e = JSON.parse(raw); } catch { continue; }
 
-                        if (data.type === 'batch_start') {
-                            const total = data.total;
-                            progressLog.innerHTML = `<span class="log-active">Starting batch (${total} citations)</span>`;
-                        }
-                        else if (data.type === 'batch_progress') {
-                            const current = data.current;
-                            const total = data.total;
-                            progressFill.style.width = `${(current / total) * 100}%`;
-                            progressLog.innerHTML = `<span class="log-active">Processing citation ${current} of ${total}</span>`;
-                        }
-                        else if (data.type === 'parsed') {
-                            progressLog.innerHTML = `<span class="log-active">Citation parsed</span>`;
-                        }
-                        else if (data.type === 'phase1_start') {
-                            progressLog.innerHTML = `<span class="log-active">Phase 1: Checking whether citation exists...</span>`;
-                            const statusLine = document.createElement('div');
-                            statusLine.className = 'status-line';
-                            statusLine.id = 'phase1-line';
-                            statusLine.textContent = 'Checking whether citation exists...';
-                            statusLines.appendChild(statusLine);
-                        }
-                        else if (data.type === 'phase1_complete') {
-                            const verdict = data.data.verdict;
-                            const caseName = data.data.case_name || '';
-                            const line = document.getElementById('phase1-line');
-                            if (line) {
-                                line.className = 'status-line verdict ' + verdictClass(verdict);
-                                line.textContent = `${verdict}: ${caseName || 'Citation verified'}`;
-                            }
-                        }
-                        else if (data.type === 'phase2_start') {
-                            progressLog.innerHTML = `<span class="log-active">Phase 2: Verifying quoted language...</span>`;
-                            const statusLine = document.createElement('div');
-                            statusLine.className = 'status-line';
-                            statusLine.id = 'phase2-line';
-                            statusLine.textContent = 'Verifying quoted language...';
-                            statusLines.appendChild(statusLine);
-                        }
-                        else if (data.type === 'phase2_complete') {
-                            const verdict = data.data.display_verdict || data.data.verdict;
-                            const line = document.getElementById('phase2-line');
-                            if (line) {
-                                line.className = 'status-line verdict ' + verdictClass(verdict);
-                                line.textContent = `${verdict}: Quote verified`;
-                            }
-                        }
-                        else if (data.type === 'phase3_start') {
-                            progressLog.innerHTML = `<span class="log-active">Phase 3: Reading opinion for context...</span>`;
-                            const statusLine = document.createElement('div');
-                            statusLine.className = 'status-line';
-                            statusLine.id = 'phase3-line';
-                            statusLine.textContent = 'Reading opinion for context...';
-                            statusLines.appendChild(statusLine);
-                        }
-                        else if (data.type === 'phase3_complete') {
-                            const verdict = data.data.verdict;
-                            const line = document.getElementById('phase3-line');
-                            if (line) {
-                                line.className = 'status-line verdict ' + verdictClass(verdict);
-                                line.textContent = `${verdict}: Coherence check complete`;
-                            }
-                        }
-                        else if (data.type === 'heartbeat') {
-                            // Heartbeat handled by activity tracker
-                        }
-                        else if (data.type === 'batch_done') {
-                            clearInterval(timerInterval);
-                            clearInterval(activityCheck);
-                            progressFill.classList.remove('active');
-                            progressLog.innerHTML = `<span class="log-done">Batch complete</span>`;
-                            progressFill.style.width = '100%';
+                    const t = e.type;
 
-                            setTimeout(() => {
-                                document.getElementById('step4').style.display = 'none';
-                                document.getElementById('step5').style.display = 'block';
-                                renderSummary();
-                            }, 500);
+                    if (t === 'batch_start') {
+                        const total = data.total;
+                        progressLog.innerHTML = `<span class="log-active">Starting batch (${total} citations)</span>`;
+                    }
+
+                    else if (t === 'batch_progress') {
+                        const current = e.data.current;
+                        const total = e.data.total;
+                        progressFill.style.width = `${(current / total) * 100}%`;
+                        progressLog.innerHTML = `<span class="log-active">Processing citation ${current} of ${total}</span>`;
+                    }
+
+                    else if (t === 'parsed') {
+                        progressLog.innerHTML = `<span class="log-active">Citation parsed</span>`;
+                    }
+
+                    else if (t === 'phase1_start') {
+                        progressLog.innerHTML = `<span class="log-active">Phase 1: Checking whether citation exists...</span>`;
+                        const statusLine = document.createElement('div');
+                        statusLine.className = 'status-line';
+                        statusLine.id = 'phase1-line';
+                        statusLine.textContent = 'Checking whether citation exists...';
+                        statusLines.appendChild(statusLine);
+                    }
+
+                    else if (t === 'phase1_complete') {
+                        const verdict = e.data.verdict;
+                        const caseName = e.data.case_name || '';
+                        const line = document.getElementById('phase1-line');
+                        if (line) {
+                            line.className = 'status-line verdict ' + verdictClass(verdict);
+                            line.textContent = `${verdict}: ${caseName || 'Citation verified'}`;
                         }
-                        else if (data.type === 'unparseable') {
-                            progressLog.innerHTML = `<span class="log-done">Could not parse citation</span>`;
+                    }
+
+                    else if (t === 'phase2_start') {
+                        progressLog.innerHTML = `<span class="log-active">Phase 2: Verifying quoted language...</span>`;
+                        const statusLine = document.createElement('div');
+                        statusLine.className = 'status-line';
+                        statusLine.id = 'phase2-line';
+                        statusLine.textContent = 'Verifying quoted language...';
+                        statusLines.appendChild(statusLine);
+                    }
+
+                    else if (t === 'phase2_complete') {
+                        const verdict = e.data.display_verdict || e.data.verdict;
+                        const line = document.getElementById('phase2-line');
+                        if (line) {
+                            line.className = 'status-line verdict ' + verdictClass(verdict);
+                            line.textContent = `${verdict}: Quote verified`;
                         }
+                    }
+
+                    else if (t === 'phase3_start') {
+                        progressLog.innerHTML = `<span class="log-active">Phase 3: Reading opinion for context...</span>`;
+                        const statusLine = document.createElement('div');
+                        statusLine.className = 'status-line';
+                        statusLine.id = 'phase3-line';
+                        statusLine.textContent = 'Reading opinion for context...';
+                        statusLines.appendChild(statusLine);
+                    }
+
+                    else if (t === 'phase3_complete') {
+                        const verdict = e.data.verdict;
+                        const line = document.getElementById('phase3-line');
+                        if (line) {
+                            line.className = 'status-line verdict ' + verdictClass(verdict);
+                            line.textContent = `${verdict}: Coherence check complete`;
+                        }
+                    }
+
+                    else if (t === 'heartbeat') {
+                        // Heartbeat handled by activity tracker
+                    }
+
+                    else if (t === 'batch_done') {
+                        clearInterval(timerInterval);
+                        clearInterval(activityCheck);
+                        progressFill.classList.remove('active');
+                        progressLog.innerHTML = `<span class="log-done">Batch complete</span>`;
+                        progressFill.style.width = '100%';
+
+                        setTimeout(() => {
+                            document.getElementById('step4').style.display = 'none';
+                            document.getElementById('step5').style.display = 'block';
+                            renderSummary();
+                        }, 500);
+                    }
+
+                    else if (t === 'unparseable') {
+                        progressLog.innerHTML = `<span class="log-done">Could not parse citation</span>`;
                     }
                 }
             }
