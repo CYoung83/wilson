@@ -507,6 +507,19 @@
             color: #aaa;
         }
 
+        .queue-btn-accept-all {
+            flex: 0 0 auto;
+            padding: 0.65rem 1rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        .queue-btn-accept-all:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
         .queue-btn-run {
             flex: 1;
             padding: 0.65rem 2rem;
@@ -896,6 +909,7 @@
 
             <div class="queue-actions">
                 <button type="button" id="backBtn" class="queue-btn-back">Back</button>
+                <button type="button" id="acceptAllBtn" class="queue-btn accept-all">Accept All</button>
                 <button type="button" id="runAuditBtn" class="queue-btn run disabled">Run Audit</button>
             </div>
         </div>
@@ -1401,6 +1415,24 @@
             document.getElementById('step2').classList.add('active');
         });
 
+        document.getElementById('acceptAllBtn').addEventListener('click', () => {
+            // Accept all pending rows
+            const pendingRows = document.querySelectorAll('.citation-row.pending');
+            pendingRows.forEach(row => {
+                const badge = row.querySelector('.status-badge');
+                if (badge) {
+                    badge.textContent = 'ACCEPTED';
+                    badge.className = 'status-badge accepted';
+                }
+                const textarea = row.querySelector('textarea');
+                if (textarea) {
+                    const originalCitation = citationsData[row.id.replace('citation-', '')]?.citation_text;
+                    textarea.value = originalCitation || textarea.value;
+                }
+            });
+            updateTally();
+        });
+
         document.getElementById('runAuditBtn').addEventListener('click', async () => {
             const btn = document.getElementById('runAuditBtn');
             btn.disabled = true;
@@ -1454,10 +1486,131 @@
                 }
             }, 1000);
 
-            // Open SSE connection
-            const eventSource = new EventSource(`/batch/stream?citations=${encodeURIComponent(JSON.stringify(citations))}&depth=${depth}`);
+            // Show loading indicator
+            const loadingIndicator = document.getElementById('batchStatus');
+            if (loadingIndicator) {
+                const statusText = loadingIndicator.querySelector('.batch-status-text');
+                if (statusText) {
+                    statusText.style.display = 'block';
+                    statusText.textContent = 'Starting batch run...';
+                }
+            }
 
-            eventSource.onmessage = (event) => {
+            // Use POST with fetch instead of EventSource
+            const response = await fetch('/batch/stream', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({citations: citations, depth: depth})
+            });
+
+            if (!response.ok) {
+                throw new Error(`Batch stream error: ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const {done, value} = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, {stream: true});
+                const lines = buffer.split('\n\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const event = line.slice(6);
+                        const data = JSON.parse(event);
+
+                        if (data.type === 'batch_start') {
+                            const total = data.total;
+                            progressLog.innerHTML = `<span class="log-active">Starting batch (${total} citations)</span>`;
+                        }
+                        else if (data.type === 'batch_progress') {
+                            const current = data.current;
+                            const total = data.total;
+                            progressFill.style.width = `${(current / total) * 100}%`;
+                            progressLog.innerHTML = `<span class="log-active">Processing citation ${current} of ${total}</span>`;
+                        }
+                        else if (data.type === 'parsed') {
+                            progressLog.innerHTML = `<span class="log-active">Citation parsed</span>`;
+                        }
+                        else if (data.type === 'phase1_start') {
+                            progressLog.innerHTML = `<span class="log-active">Phase 1: Checking whether citation exists...</span>`;
+                            const statusLine = document.createElement('div');
+                            statusLine.className = 'status-line';
+                            statusLine.id = 'phase1-line';
+                            statusLine.textContent = 'Checking whether citation exists...';
+                            statusLines.appendChild(statusLine);
+                        }
+                        else if (data.type === 'phase1_complete') {
+                            const verdict = data.data.verdict;
+                            const caseName = data.data.case_name || '';
+                            const line = document.getElementById('phase1-line');
+                            if (line) {
+                                line.className = 'status-line verdict ' + verdictClass(verdict);
+                                line.textContent = `${verdict}: ${caseName || 'Citation verified'}`;
+                            }
+                        }
+                        else if (data.type === 'phase2_start') {
+                            progressLog.innerHTML = `<span class="log-active">Phase 2: Verifying quoted language...</span>`;
+                            const statusLine = document.createElement('div');
+                            statusLine.className = 'status-line';
+                            statusLine.id = 'phase2-line';
+                            statusLine.textContent = 'Verifying quoted language...';
+                            statusLines.appendChild(statusLine);
+                        }
+                        else if (data.type === 'phase2_complete') {
+                            const verdict = data.data.display_verdict || data.data.verdict;
+                            const line = document.getElementById('phase2-line');
+                            if (line) {
+                                line.className = 'status-line verdict ' + verdictClass(verdict);
+                                line.textContent = `${verdict}: Quote verified`;
+                            }
+                        }
+                        else if (data.type === 'phase3_start') {
+                            progressLog.innerHTML = `<span class="log-active">Phase 3: Reading opinion for context...</span>`;
+                            const statusLine = document.createElement('div');
+                            statusLine.className = 'status-line';
+                            statusLine.id = 'phase3-line';
+                            statusLine.textContent = 'Reading opinion for context...';
+                            statusLines.appendChild(statusLine);
+                        }
+                        else if (data.type === 'phase3_complete') {
+                            const verdict = data.data.verdict;
+                            const line = document.getElementById('phase3-line');
+                            if (line) {
+                                line.className = 'status-line verdict ' + verdictClass(verdict);
+                                line.textContent = `${verdict}: Coherence check complete`;
+                            }
+                        }
+                        else if (data.type === 'heartbeat') {
+                            // Heartbeat handled by activity tracker
+                        }
+                        else if (data.type === 'batch_done') {
+                            clearInterval(timerInterval);
+                            clearInterval(activityCheck);
+                            progressFill.classList.remove('active');
+                            progressLog.innerHTML = `<span class="log-done">Batch complete</span>`;
+                            progressFill.style.width = '100%';
+
+                            setTimeout(() => {
+                                document.getElementById('step4').style.display = 'none';
+                                document.getElementById('step5').style.display = 'block';
+                                renderSummary();
+                            }, 500);
+                        }
+                        else if (data.type === 'unparseable') {
+                            progressLog.innerHTML = `<span class="log-done">Could not parse citation</span>`;
+                        }
+                    }
+                }
+            }
+
+            // Old EventSource handlers removed - using fetch POST above
+        });
                 lastActivity = Date.now();
                 softWarning.classList.remove('visible');
                 hardWarning.classList.remove('visible');
@@ -1605,7 +1758,7 @@
                 const expandBtn = tr.querySelector('.expand-toggle');
                 expandBtn.addEventListener('click', () => {
                     const details = tr.querySelector('.summary-row-details');
-                    const isShowing = details.classList.contains('show');
+                    const isShowing = details ? details.classList.contains('show') : false;
                     // Close all others
                     document.querySelectorAll('.summary-row-details').forEach(d => d.classList.remove('show'));
                     document.querySelectorAll('.expand-toggle').forEach(t => t.textContent = 'Expand');
