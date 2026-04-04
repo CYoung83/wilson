@@ -1,5 +1,5 @@
 """
-Wilson API v0.0.5
+Wilson API v0.1.0
 
 FastAPI-based REST API and web interface for Wilson citation verification.
 Uses Server-Sent Events (SSE) for streaming phase-by-phase results.
@@ -663,7 +663,7 @@ async def health():
         pass
     return {
         "status": "operational",
-        "version": "0.0.5",
+        "version": "0.1.0",
         "phases": {
             "phase1_api": {
                 "available": cl_available,
@@ -866,7 +866,7 @@ async def verify(request: VerifyRequest):
 
     result = {
         "citation": citation_text,
-        "version": "0.0.5",
+        "version": "0.1.0",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
