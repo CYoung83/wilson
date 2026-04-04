@@ -479,6 +479,12 @@
         if (d.local_csv)  h += detail('Local CSV', d.local_csv);
         h += `</div>`;
         if (d.message) h += `<div class="reasoning">${d.message}</div>`;
+        if (d.privacy_protected) {
+            h += `<div class="reasoning" style="border-left-color: #4a3a1a; color: #ff9800;">
+                This opinion has been flagged for privacy protection.
+                Quote verification and coherence checking are not available for this citation.
+            </div>`;
+        }
         h += `</div>`;
         return h;
     }

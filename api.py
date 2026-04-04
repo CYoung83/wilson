@@ -119,6 +119,34 @@ def lookup_citation_api(text: str):
         return None, None, None, f"API error: {e}"
 
 
+def fetch_cluster_blocked(cluster_id: int) -> bool:
+    """
+    Check whether a CourtListener cluster has been flagged for privacy protection.
+
+    CourtListener allows individuals to request de-indexing of their cases.
+    When blocked=True, Wilson skips Phase 2 and Phase 3 out of respect for
+    that privacy request. On any API error, returns False (do not block on
+    uncertainty -- better to over-verify than under-verify).
+
+    Args:
+        cluster_id: CourtListener cluster ID from Phase 1 verification
+
+    Returns:
+        True if the cluster is privacy-protected, False otherwise
+    """
+    try:
+        resp = http_requests.get(
+            f"https://www.courtlistener.com/api/rest/v4/clusters/{cluster_id}/",
+            headers=CL_HEADERS,
+            timeout=5
+        )
+        if resp.status_code == 200:
+            return bool(resp.json().get("blocked", False))
+        return False
+    except Exception:
+        return False
+
+
 def lookup_by_name(case_name: str):
     """
     Fallback: search CourtListener by case name when no reporter citation available.
@@ -337,9 +365,32 @@ async def run_pipeline(
         "match_pct": match_pct,
         "api_found": True,
         "local_csv": csv_stat,
+        "privacy_protected": False,
         "message": f"Citation verified -- {actual_case_name} ({match_pct}% name match)"
     })
     await asyncio.sleep(0)
+
+    # After phase1_complete yields EXISTS -- check privacy protection before Phase 2/3
+    if cluster_id:
+        is_blocked = fetch_cluster_blocked(cluster_id)
+        if is_blocked:
+            yield make_event("phase1_complete", data={
+                "verdict": "EXISTS",
+                "cluster_id": cluster_id,
+                "case_name": actual_case_name,
+                "cited_name": cited_name,
+                "match_pct": match_pct,
+                "api_found": True,
+                "local_csv": csv_stat,
+                "privacy_protected": True,
+                "message": (
+                    f"Citation verified -- {actual_case_name} ({match_pct}% name match). "
+                    f"This opinion has been flagged for privacy protection. "
+                    f"Quote verification and coherence checking are not available."
+                )
+            })
+            yield make_event("done", duration=round(time.time() - start_time, 2))
+            return
 
     # Phase 2: Quote verification
     if quoted_text and cluster_id:
