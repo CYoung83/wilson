@@ -78,11 +78,27 @@
             flex-wrap: wrap;
         }
 
+        header {
+            margin-bottom: 1.25rem;
+            border-bottom: 1px solid #1a1a1a;
+            padding-bottom: 1rem;
+            display: flex;
+            align-items: baseline;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+        }
+
         header h1 {
             font-size: 1.75rem;
             font-weight: 700;
             color: #fff;
             letter-spacing: -0.5px;
+        }
+
+        .favicon-small {
+            margin-right: 0.5rem;
+            vertical-align: middle;
+            opacity: 0.9;
         }
 
         .tagline {
@@ -372,11 +388,14 @@
         footer a { color: #2e2e2e; text-decoration: none; }
         footer a:hover { color: #555; }
     </style>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
 </head>
 <body>
 <div class="container">
 
     <header>
+        <img src="/favicon.ico" alt="Wilson" width="24" height="24"
+             class="favicon-small">
         <h1>Wilson</h1>
         <span class="tagline">Wilson removes the advantage afforded to those who will lie.</span>
         <button id="settings-btn" onclick="openSettings()"
@@ -474,10 +493,80 @@
     <div id="results"></div>
 
     <footer>
+        <span>
+            <a href="#" onclick="document.getElementById('about-modal').style.display='flex';return false;"
+               style="color:var(--text-muted);text-decoration:none;">
+                Wilson v0.1.0
+            </a>
+            --
+            <a href="https://github.com/CYoung83/wilson" target="_blank"
+               style="color:var(--text-muted);text-decoration:none;">
+                github.com/CYoung83/wilson
+            </a>
+        </span>
         <span><a href="/upload">Upload Document</a> &middot; </span>
-        <span>Wilson v0.0.5 -- <a href="https://github.com/CYoung83/wilson" target="_blank">github.com/CYoung83/wilson</a></span>
         <span><a href="/docs" target="_blank">API Docs</a> &middot; <a href="/health" target="_blank">Health</a></span>
     </footer>
+
+    <!-- About modal -->
+    <div id="about-modal"
+         onclick="if(event.target===this)this.style.display='none'"
+         style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);
+                z-index:2000;align-items:center;justify-content:center;">
+        <div style="background:var(--bg-card);border:1px solid var(--border);
+                    border-radius:8px;padding:2rem;max-width:480px;width:90%;
+                    position:relative;">
+            <button onclick="document.getElementById('about-modal').style.display='none'"
+                    style="position:absolute;top:1rem;right:1rem;background:none;
+                           border:none;color:var(--text-muted);font-size:1.2rem;
+                           cursor:pointer;">&times;</button>
+
+            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.25rem;">
+                <img src="/favicon.ico" alt="Wilson" width="32" height="32">
+                <span style="font-size:1.1rem;font-weight:600;color:var(--text);">Wilson</span>
+                <span style="font-size:0.8rem;color:var(--text-muted);">v0.1.0</span>
+            </div>
+
+            <p style="color:var(--text);font-size:0.9rem;line-height:1.6;margin-bottom:1rem;">
+                Wilson removes the advantage afforded to those who will lie.
+            </p>
+
+            <p style="color:var(--text-muted);font-size:0.82rem;line-height:1.6;margin-bottom:1rem;">
+                An open-source AI reasoning auditor for legal citations. Wilson verifies
+                citations against primary sources and reconstructs the decision chain
+                behind AI-generated outputs with enough granularity to assign accountability.
+            </p>
+
+            <p style="color:var(--text-muted);font-size:0.82rem;line-height:1.6;margin-bottom:1.25rem;">
+                Named for the volleyball in Cast Away -- something real built under duress
+                because survival required it.
+            </p>
+
+            <div style="display:flex;flex-direction:column;gap:0.4rem;
+                        border-top:1px solid var(--border);padding-top:1rem;">
+                <a href="https://github.com/CYoung83/wilson" target="_blank"
+                   style="color:var(--accent);font-size:0.82rem;text-decoration:none;">
+                    github.com/CYoung83/wilson
+                </a>
+                <a href="https://www.courtlistener.com" target="_blank"
+                   style="color:var(--text-muted);font-size:0.82rem;text-decoration:none;">
+                    Powered by CourtListener -- Free Law Project
+                </a>
+                <a href="https://www.damiencharlotin.com/hallucinations/" target="_blank"
+                   style="color:var(--text-muted);font-size:0.82rem;text-decoration:none;">
+                    Charlotin AI Hallucination Database
+                </a>
+            </div>
+
+            <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);
+                        display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:var(--text-muted);font-size:0.78rem;">Apache 2.0</span>
+                <span style="color:var(--text-muted);font-size:0.78rem;">
+                    National Standard Consulting LLC -- SDVOSB
+                </span>
+            </div>
+        </div>
+    </div>
 
 </div>
 <script>
