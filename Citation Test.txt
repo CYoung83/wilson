@@ -1,0 +1,87 @@
+FABRICATED — confirmed from Mata v. Avianca sanctions order:
+
+Varghese v. China Southern Airlines Co., Ltd., 925 F.3d 1339 (11th Cir. 2019)
+Shaboon v. Egyptair, 2013 WL 3829266 (N.D. Ill. 2013)
+Martinez v. Delta Air Lines, 2019 WL 4748390 (E.D. Pa. 2019)
+Zubulake v. UBS Warburg LLC, 382 F.3d 162 (2d Cir. 2004) — real case name, fabricated reporter citation
+Brown v. Colvin, 2019 WL 8752341 (D. Ariz. 2019) — from the Social Security sanctions case documented above
+
+
+EXISTS — real, well-known cases:
+
+Miranda v. Arizona, 384 U.S. 436 (1966)
+Strickland v. Washington, 466 U.S. 668 (1984)
+Daubert v. Merrell Dow Pharmaceuticals, Inc., 509 U.S. 579 (1993)
+Bell Atlantic Corp. v. Twombly, 550 U.S. 544 (2007)
+Obergefell v. Hodges, 576 U.S. 644 (2015)
+
+
+MISATTRIBUTED — coordinates exist but belong to different case:
+
+Petersen v. Iran Air, 905 F.2d 1011 (7th Cir. 1990) — already confirmed, belongs to Silagy v. Peters
+Carey v. Pakistani Int'l Airlines Corp., 987 F.2d 1192 (6th Cir. 1993) — already confirmed, belongs to Nesom v. Brown and Root
+United States v. Chambers, 892 F.3d 1193 (D.C. Cir. 2018) — already confirmed, belongs to Sunpreme Inc. v. United States
+Johnson v. United Airlines, 784 F.3d 1070 (7th Cir. 2015) — run this one, likely misattributed
+Williams v. State Farm Insurance, 651 F.3d 1021 (9th Cir. 2011) — run this one, likely misattributed
+
+For Strickland v. Washington, 466 U.S. 668 (1984):
+Real quotes:
+
+"The proper measure of attorney performance is reasonableness under prevailing professional norms"
+"Judicial scrutiny of counsel's performance must be highly deferential"
+"A fair assessment of attorney performance requires that every effort be made to eliminate the distorting effects of hindsight"
+
+Fabricated quote:
+
+"Defense counsel bears the burden of proving that their performance met constitutional standards at every stage of proceedings"
+
+Real proposition: To prevail on an ineffective assistance claim a defendant must show both deficient performance and prejudice
+Wrong proposition: Any error by defense counsel automatically entitles a defendant to a new trial
+
+For Miranda v. Arizona, 384 U.S. 436 (1966):
+Real quote:
+
+"The prosecution may not use statements whether exculpatory or inculpatory stemming from custodial interrogation of the defendant unless it demonstrates the use of procedural safeguards effective to secure the privilege against self-incrimination"
+
+Fabricated quote:
+
+"Law enforcement officers must provide written documentation of all rights warnings administered prior to any custodial interrogation"
+
+Real proposition: Prior to custodial interrogation police must inform suspects of their right to remain silent and their right to counsel
+Wrong proposition: Any statement made to police before arrest is inadmissible without Miranda warnings
+
+For Daubert v. Merrell Dow, 509 U.S. 579 (1993):
+Real quote:
+
+"The trial judge must ensure that any and all scientific testimony or evidence admitted is not only relevant but reliable"
+
+Fabricated quote:
+
+"Expert witnesses must hold doctoral degrees in their field and have published peer-reviewed research within five years of testimony"
+
+Real proposition: The trial judge serves as gatekeeper to ensure expert testimony is based on sufficient facts and reliable methodology
+Wrong proposition: Expert testimony is admissible whenever the witness holds relevant professional credentials
+
+For Twombly, 550 U.S. 544 (2007):
+Real quote:
+
+"A plaintiff's obligation to provide the grounds of his entitlement to relief requires more than labels and conclusions"
+
+Fabricated quote:
+
+"A complaint must allege specific facts demonstrating each element of the cause of action with particularity"
+
+Real proposition: A complaint must allege enough facts to state a claim to relief that is plausible on its face
+Wrong proposition: A complaint may be dismissed only if it is clear beyond doubt that the plaintiff can prove no set of facts in support of the claim
+
+For Obergefell v. Hodges, 576 U.S. 644 (2015):
+Real quote:
+
+"The Constitution promises liberty to all within its reach a liberty that includes certain specific rights that allow persons within a lawful realm to define and express their identity"
+
+Fabricated quote:
+
+"States may not condition the issuance of marriage licenses on the religious beliefs of the applicants or the officiating clergy"
+
+Real proposition: The Fourteenth Amendment requires states to license and recognize marriages between two people of the same sex
+Wrong proposition: Religious institutions must perform same-sex marriages or forfeit their tax-exempt status
