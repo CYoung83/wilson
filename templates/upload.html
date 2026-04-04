@@ -5,135 +5,386 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wilson -- Document Upload</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-        body { padding: 2rem; max-width: 800px; margin: 0 auto; background: #f5f5f5; color: #333; }
-        .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        h1 { margin-bottom: 1rem; color: #1a1a1a; }
-        p { margin-bottom: 1.5rem; line-height: 1.6; }
-        .form-group { margin-bottom: 1.5rem; }
-        label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 960px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 1.25rem;
+            border-bottom: 1px solid #1a1a1a;
+            padding-bottom: 1rem;
+            display: flex;
+            align-items: baseline;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+        }
+
+        header h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.5px;
+        }
+
+        .form-panel {
+            background: #111;
+            border: 1px solid #1e1e1e;
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .form-panel h2 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #3a3a3a;
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 0.3rem;
+            margin-top: 0.85rem;
+        }
+
+        label:first-of-type { margin-top: 0; }
+
+        .opt { color: #2e2e2e; font-size: 0.7rem; margin-left: 0.4rem; }
+
         input[type="file"] {
             width: 100%;
-            padding: 0.75rem;
-            border: 2px solid #ddd;
+            background: #0a0a0a;
+            border: 2px dashed #252525;
             border-radius: 4px;
-            font-size: 1rem;
+            color: #888;
+            padding: 1.5rem;
+            font-size: 0.86rem;
+            font-family: inherit;
+            transition: all 0.15s;
         }
+
+        input[type="file"]:hover {
+            border-color: #333;
+            color: #aaa;
+        }
+
         input[type="file"]:focus {
             outline: none;
-            border-color: #007bff;
+            border-color: #4caf50;
+            color: #e0e0e0;
         }
-        .info-box {
-            background: #e8f4f8;
-            border-left: 4px solid #007bff;
-            padding: 1rem;
-            margin-bottom: 1.5rem;
-            font-size: 0.9rem;
-        }
-        .info-box ul {
-            margin-left: 1.5rem;
-            margin-top: 0.5rem;
-        }
-        .info-box li { margin-bottom: 0.25rem; }
-        button {
-            width: 100%;
-            padding: 0.75rem;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        button:hover { background: #0056b3; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-        .error {
-            color: #d32f2f;
-            padding: 1rem;
-            background: #ffebee;
-            border-radius: 4px;
-            margin-bottom: 1rem;
-            display: none;
-        }
-        .success {
-            color: #2e7d32;
-            padding: 1rem;
-            background: #e8f5e9;
-            border-radius: 4px;
-            margin-bottom: 1rem;
-            display: none;
-        }
-        #results {
-            margin-top: 2rem;
-            display: none;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
+
+        .btn-row {
+            display: flex;
+            gap: 0.5rem;
             margin-top: 1rem;
+        }
+
+        button {
+            flex: 1;
+            padding: 0.65rem;
+            background: #161616;
+            border: 1px solid #252525;
+            border-radius: 5px;
+            color: #ccc;
+            font-size: 0.86rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        button:hover  { background: #1e1e1e; border-color: #333; }
+        button:active { background: #0f0f0f; }
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .btn-secondary {
+            background: #0a0a0a;
+            border-color: #333;
+        }
+
+        .btn-primary {
+            background: #0d2a0d;
+            border-color: #1a4a1a;
+            color: #4caf50;
+        }
+
+        .btn-primary:hover {
+            background: #1a4a1a;
+            border-color: #2d7a2d;
+            color: #4caf50;
+        }
+
+        .error-block {
+            background: #160808;
+            border: 1px solid #3a1515;
+            border-radius: 6px;
+            padding: 0.85rem;
+            color: #cc3333;
+            font-size: 0.8rem;
+            line-height: 1.55;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .success-block {
+            background: #0a1a0a;
+            border: 1px solid #1a4a1a;
+            border-radius: 6px;
+            padding: 1rem;
+            color: #4caf50;
             font-size: 0.9rem;
+            line-height: 1.6;
+            margin-top: 1rem;
+            display: none;
         }
-        th, td {
-            padding: 0.75rem;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
+
+        /* Step 2 - Depth Selector */
+        .step-section {
+            display: none;
+            animation: fadeUp 0.3s ease;
         }
-        th { background: #f8f9fa; font-weight: 600; }
-        tr:hover { background: #f1f1f1; }
+
+        .step-section.active {
+            display: block;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .depth-options {
+            margin: 1rem 0;
+        }
+
+        .depth-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: #0a0a0a;
+            border: 1px solid #1e1e1e;
+            border-radius: 6px;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .depth-option:hover {
+            border-color: #333;
+        }
+
+        .depth-option.selected {
+            border-color: #4caf50;
+            background: #0d1a0d;
+        }
+
+        .depth-option input[type="radio"] {
+            margin-top: 0.25rem;
+            accent-color: #4caf50;
+            transform: scale(1.1);
+        }
+
+        .depth-label {
+            flex: 1;
+            margin-top: 0.1rem;
+        }
+
+        .depth-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-bottom: 0.25rem;
+        }
+
+        .depth-desc {
+            font-size: 0.75rem;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .step-nav {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .step-nav button {
+            flex: 0 0 auto;
+        }
+
+        /* Placeholder divs for future steps */
+        .step-placeholder {
+            background: #111;
+            border: 1px dashed #252525;
+            border-radius: 8px;
+            padding: 2rem;
+            margin-top: 1.5rem;
+            text-align: center;
+            color: #444;
+        }
+
+        .step-placeholder h3 {
+            font-size: 0.85rem;
+            color: #555;
+            margin-bottom: 0.5rem;
+        }
+
+        .step-placeholder p {
+            font-size: 0.75rem;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        footer {
+            margin-top: 2.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #141414;
+            font-size: 0.68rem;
+            color: #252525;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        footer a { color: #2e2e2e; text-decoration: none; }
+        footer a:hover { color: #555; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Wilson -- Document Upload</h1>
-        <p>Upload a legal document to extract citations and analyze their usage.</p>
 
-        <div class="info-box">
-            <strong>Supported file types:</strong>
-            <ul>
-                <li>PDF documents (.pdf)</li>
-                <li>Word documents (.docx)</li>
-                <li>Plain text files (.txt)</li>
-            </ul>
-            <strong>File size limit:</strong> 50 MB
-        </div>
+        <header>
+            <h1>Document Upload</h1>
+            <span class="tagline">Upload a legal document to analyze citations</span>
+        </header>
 
-        <form id="uploadForm" enctype="multipart/form-data">
+        <!-- Step 1: File Upload -->
+        <div class="form-panel" id="step1">
+            <h2>Upload Document</h2>
+
             <div class="form-group">
                 <label for="file">Select File</label>
-                <input type="file" id="file" name="file" accept=".pdf,.docx,.txt" required>
+                <input
+                    type="file"
+                    id="file"
+                    name="file"
+                    accept=".pdf,.docx,.txt"
+                    required
+                />
             </div>
 
-            <div id="error" class="error"></div>
-            <div id="success" class="success"></div>
+            <div class="info-box">
+                <div style="font-size: 0.8rem; color: #666;">
+                    <strong>Supported formats:</strong> .pdf, .docx, .txt<br/>
+                    <strong>Max size:</strong> 50MB
+                </div>
+            </div>
 
-            <button type="submit" id="submitBtn">Analyze Document</button>
-        </form>
+            <div id="error" class="error-block"></div>
+            <div id="success" class="success-block"></div>
 
-        <div id="results">
-            <h2>Extraction Results</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Citation Text</th>
-                        <th>Page</th>
-                        <th>Context Snippet</th>
-                    </tr>
-                </thead>
-                <tbody id="resultsBody">
-                </tbody>
-            </table>
+            <div class="btn-row">
+                <button type="submit" id="submitBtn">Analyze Document</button>
+            </div>
         </div>
+
+        <!-- Step 2: Depth Selector -->
+        <div class="form-panel step-section" id="step2">
+            <h2>Analysis Depth</h2>
+
+            <div class="success-block" id="parseSuccess">
+                <strong>Document parsed successfully!</strong>
+                <span id="citationsCount"></span>
+            </div>
+
+            <label>Analysis Depth</label>
+
+            <div class="depth-options">
+                <label class="depth-option" id="opt-existence">
+                    <input
+                        type="radio"
+                        name="depth"
+                        value="existence"
+                        checked
+                    />
+                    <div class="depth-label">
+                        <div class="depth-title">Existence only</div>
+                        <div class="depth-desc">Check if citations exist in CourtListener and local database.</div>
+                    </div>
+                </label>
+
+                <label class="depth-option" id="opt-quotes">
+                    <input
+                        type="radio"
+                        name="depth"
+                        value="quotes"
+                    />
+                    <div class="depth-label">
+                        <div class="depth-title">Existence + Quotes</div>
+                        <div class="depth-desc">Verify quote language against full opinion text.</div>
+                    </div>
+                </label>
+
+                <label class="depth-option" id="opt-full">
+                    <input
+                        type="radio"
+                        name="depth"
+                        value="full"
+                    />
+                    <div class="depth-label">
+                        <div class="depth-title">Full audit</div>
+                        <div class="depth-desc">Complete analysis including coherence checking.</div>
+                    </div>
+                </label>
+            </div>
+
+            <div class="step-nav">
+                <button type="button" id="cancelBtn" class="btn-secondary">Cancel</button>
+                <button type="button" id="continueBtn">Continue</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Citation Results (Placeholder) -->
+        <div class="step-placeholder" id="step3">
+            <h3>Step 3: Citation Results</h3>
+            <p>Citation verification results will appear here.</p>
+        </div>
+
+        <!-- Step 4: Proposition Suggestions (Placeholder) -->
+        <div class="step-placeholder" id="step4">
+            <h3>Step 4: Proposition Suggestions</h3>
+            <p>Legal proposition suggestions will appear here.</p>
+        </div>
+
+        <!-- Step 5: Summary (Placeholder) -->
+        <div class="step-placeholder" id="step5">
+            <h3>Step 5: Summary</h3>
+            <p>Overall summary will appear here.</p>
+        </div>
+
     </div>
 
     <script>
-        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+        document.getElementById('submitBtn').addEventListener('click', async (e) => {
             e.preventDefault();
             const file = document.getElementById('file').files[0];
             const errorDiv = document.getElementById('error');
             const successDiv = document.getElementById('success');
-            const resultsDiv = document.getElementById('results');
-            const resultsBody = document.getElementById('resultsBody');
             const submitBtn = document.getElementById('submitBtn');
 
             if (!file) {
@@ -144,8 +395,6 @@
             // Reset UI
             errorDiv.style.display = 'none';
             successDiv.style.display = 'none';
-            resultsDiv.style.display = 'none';
-            resultsBody.innerHTML = '';
             submitBtn.disabled = true;
             submitBtn.textContent = 'Analyzing...';
 
@@ -165,23 +414,14 @@
 
                 const data = await response.json();
 
-                // Display success
+                // Show success with citation count
+                const citationText = `Found ${data.citation_count} citation${data.citation_count !== 1 ? 's' : ''} in ${data.filename}`;
+                document.getElementById('citationsCount').textContent = citationText;
                 successDiv.style.display = 'block';
-                successDiv.innerHTML = `
-                    <strong>Success!</strong> Extracted ${data.citation_count} citation(s) from ${data.page_count} page(s).
-                `;
 
-                // Display results
-                resultsDiv.style.display = 'block';
-                data.citations.forEach(citation => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${citation.citation_text}</td>
-                        <td>${citation.page_number}</td>
-                        <td>${citation.context_snippet.substring(0, 200)}${citation.context_snippet.length > 200 ? '...' : ''}</td>
-                    `;
-                    resultsBody.appendChild(row);
-                });
+                // Switch to Step 2
+                document.getElementById('step1').style.display = 'none';
+                document.getElementById('step2').classList.add('active');
 
             } catch (err) {
                 showError(err.message);
@@ -189,6 +429,24 @@
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Analyze Document';
             }
+        });
+
+        document.getElementById('cancelBtn').addEventListener('click', () => {
+            // Clear form and return to Step 1
+            document.getElementById('file').value = '';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('success').style.display = 'none';
+            document.getElementById('step2').classList.remove('active');
+            document.getElementById('step1').style.display = 'block';
+            document.getElementById('step3').style.display = 'none';
+            document.getElementById('step4').style.display = 'none';
+            document.getElementById('step5').style.display = 'none';
+        });
+
+        document.getElementById('continueBtn').addEventListener('click', () => {
+            // Switch to Step 3 (placeholder for now)
+            document.getElementById('step2').classList.remove('active');
+            document.getElementById('step3').style.display = 'block';
         });
 
         function showError(message) {
