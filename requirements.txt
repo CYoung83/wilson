@@ -31,4 +31,4 @@ sse-starlette==3.3.4
 # Document parsing (upload portal)
 pypdf==6.9.2
 python-docx==1.2.0
-python-multipart==0.0.22
+python-multipart==0.0.26
