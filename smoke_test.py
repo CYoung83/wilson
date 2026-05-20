@@ -14,9 +14,9 @@ Phase 2: Quote verification
   - Return confidence score and closest matching passage
 
 Test cases:
-  A) Known fabricated citation (Mata v. Avianca) — should fail existence check
-  B) Real citation with real quote (Strickland) — should pass existence and quote check
-  C) Real citation with fabricated quote (Strickland) — should pass existence, fail quote check
+  A) Known fabricated citation (Mata v. Avianca) -- should fail existence check
+  B) Real citation with real quote (Strickland) -- should pass existence and quote check
+  C) Real citation with fabricated quote (Strickland) -- should pass existence, fail quote check
 
 Local CSV is optional. If not present, Step 3 is skipped gracefully.
 Configure CITATIONS_CSV in .env or download bulk data per README instructions.
@@ -62,7 +62,7 @@ def lookup_citation(text):
         return False, None, "Citation found but no cluster data returned"
 
     cluster_id = clusters[0]["id"]
-    return True, cluster_id, f"Found — cluster ID {cluster_id}"
+    return True, cluster_id, f"Found -- cluster ID {cluster_id}"
 
 
 def check_local_csv(citations):
@@ -76,7 +76,7 @@ def check_local_csv(citations):
 
     if not os.path.exists(CITATIONS_CSV):
         return None, (
-            f"Local CSV not found at {CITATIONS_CSV} — skipping offline check. "
+            f"Local CSV not found at {CITATIONS_CSV} -- skipping offline check. "
             f"See README for bulk data download instructions."
         )
 
@@ -135,7 +135,7 @@ def run_test(label, citation_text, quoted_text=None):
     if quoted_text:
         print(f"\n[STEP 4] Quote verification...")
         if not found or not cluster_id:
-            print(f"  SKIPPED: Citation does not exist — quote verification not applicable")
+            print(f"  SKIPPED: Citation does not exist -- quote verification not applicable")
         else:
             result = verify_quote(quoted_text, cluster_id)
             print(f"  Result: {result['result']}")
@@ -147,7 +147,7 @@ def run_test(label, citation_text, quoted_text=None):
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("WILSON v0.0.2 — FULL PIPELINE TEST")
+    print("WILSON v0.0.2 -- FULL PIPELINE TEST")
     print("=" * 60)
 
     # Report CSV status upfront
@@ -160,23 +160,23 @@ if __name__ == "__main__":
         print(f"To enable: download bulk data per README instructions")
         print(f"Configure path via CITATIONS_CSV in .env")
 
-    # Test A: Known fabricated citation — should fail at existence
+    # Test A: Known fabricated citation -- should fail at existence
     run_test(
-        label="A — Fabricated citation (Mata v. Avianca)",
+        label="A -- Fabricated citation (Mata v. Avianca)",
         citation_text="Varghese v. China Southern Airlines Co., Ltd., 925 F.3d 1339 (11th Cir. 2019)",
         quoted_text="An airline's duty of care extends to all foreseeable risks of international travel"
     )
 
-    # Test B: Real citation, real quote — should pass both
+    # Test B: Real citation, real quote -- should pass both
     run_test(
-        label="B — Real citation, real quote (Strickland)",
+        label="B -- Real citation, real quote (Strickland)",
         citation_text="Strickland v. Washington, 466 U.S. 668, 688 (1984)",
         quoted_text="The proper measure of attorney performance is reasonableness under prevailing professional norms"
     )
 
-    # Test C: Real citation, fabricated quote — should pass existence, fail quote
+    # Test C: Real citation, fabricated quote -- should pass existence, fail quote
     run_test(
-        label="C — Real citation, fabricated quote (Strickland)",
+        label="C -- Real citation, fabricated quote (Strickland)",
         citation_text="Strickland v. Washington, 466 U.S. 668, 688 (1984)",
         quoted_text="Defense counsel must achieve perfect performance under all circumstances regardless of resources"
     )
