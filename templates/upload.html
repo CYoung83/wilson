@@ -1496,6 +1496,13 @@
                 }
             }
 
+            // Fetch batch stream — POST citations to backend SSE endpoint
+            const response = await fetch('/batch/stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ citations, depth })
+            });
+
             const reader  = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
@@ -1611,127 +1618,7 @@
                 }
             }
 
-            // Old EventSource handlers removed - using fetch POST above
-        });
-                lastActivity = Date.now();
-                softWarning.classList.remove('visible');
-                hardWarning.classList.remove('visible');
-
-                try {
-                    const data = JSON.parse(event.data);
-                    const type = data.type;
-
-                    if (type === 'batch_start') {
-                        const total = data.total;
-                        progressLog.innerHTML = `<span class="log-active">Starting batch (${total} citations)</span>`;
-                    }
-
-                    else if (type === 'batch_progress') {
-                        const current = data.current;
-                        const total = data.total;
-                        progressFill.style.width = `${(current / total) * 100}%`;
-                        progressLog.innerHTML = `<span class="log-active">Processing citation ${current} of ${total}</span>`;
-                    }
-
-                    else if (type === 'parsed') {
-                        progressLog.innerHTML = `<span class="log-active">Citation parsed</span>`;
-                    }
-
-                    else if (type === 'phase1_start') {
-                        progressLog.innerHTML = `<span class="log-active">Phase 1: Checking whether citation exists...</span>`;
-                        const statusLine = document.createElement('div');
-                        statusLine.className = 'status-line';
-                        statusLine.id = 'phase1-line';
-                        statusLine.textContent = 'Checking whether citation exists...';
-                        statusLines.appendChild(statusLine);
-                    }
-
-                    else if (type === 'phase1_complete') {
-                        const verdict = data.data.verdict;
-                        const caseName = data.data.case_name || '';
-                        const line = document.getElementById('phase1-line');
-                        if (line) {
-                            line.className = 'status-line verdict ' + verdictClass(verdict);
-                            line.textContent = `${verdict}: ${caseName || 'Citation verified'}`;
-                        }
-                    }
-
-                    else if (type === 'phase2_start') {
-                        progressLog.innerHTML = `<span class="log-active">Phase 2: Verifying quoted language...</span>`;
-                        const statusLine = document.createElement('div');
-                        statusLine.className = 'status-line';
-                        statusLine.id = 'phase2-line';
-                        statusLine.textContent = 'Verifying quoted language...';
-                        statusLines.appendChild(statusLine);
-                    }
-
-                    else if (type === 'phase2_complete') {
-                        const verdict = data.data.display_verdict || data.data.verdict;
-                        const line = document.getElementById('phase2-line');
-                        if (line) {
-                            line.className = 'status-line verdict ' + verdictClass(verdict);
-                            line.textContent = `${verdict}: Quote verified`;
-                        }
-                    }
-
-                    else if (type === 'phase3_start') {
-                        progressLog.innerHTML = `<span class="log-active">Phase 3: Reading opinion for context...</span>`;
-                        const statusLine = document.createElement('div');
-                        statusLine.className = 'status-line';
-                        statusLine.id = 'phase3-line';
-                        statusLine.textContent = 'Reading opinion for context...';
-                        statusLines.appendChild(statusLine);
-                    }
-
-                    else if (type === 'phase3_complete') {
-                        const verdict = data.data.verdict;
-                        const line = document.getElementById('phase3-line');
-                        if (line) {
-                            line.className = 'status-line verdict ' + verdictClass(verdict);
-                            line.textContent = `${verdict}: Coherence check complete`;
-                        }
-                    }
-
-                    else if (type === 'heartbeat') {
-                        // Heartbeat handled by activity tracker
-                    }
-
-                    else if (type === 'batch_done') {
-                        clearInterval(timerInterval);
-                        clearInterval(activityCheck);
-                        progressFill.classList.remove('active');
-                        progressLog.innerHTML = `<span class="log-done">Batch complete</span>`;
-                        progressFill.style.width = '100%';
-                        eventSource.close();
-
-                        setTimeout(() => {
-                            document.getElementById('step4').style.display = 'none';
-                            document.getElementById('step5').style.display = 'block';
-                            renderSummary();
-                        }, 500);
-                    }
-
-                    else if (type === 'unparseable') {
-                        progressLog.innerHTML = `<span class="log-done">Could not parse citation</span>`;
-                    }
-
-                } catch (e) {
-                    console.error('Error parsing SSE data:', e);
-                }
-            };
-
-            eventSource.onerror = () => {
-                clearInterval(timerInterval);
-                clearInterval(activityCheck);
-                eventSource.close();
-                progressFill.classList.remove('active');
-                hardWarning.classList.add('visible');
-                setTimeout(() => {
-                    document.getElementById('step4').style.display = 'none';
-                    document.getElementById('step5').style.display = 'block';
-                    renderSummary();
-                }, 500);
-            };
+            // Dead EventSource block removed — fetch POST handles streaming now
         });
 
         function escapeHtml(s) {
