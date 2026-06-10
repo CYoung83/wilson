@@ -960,16 +960,26 @@
 
                 <div class="glossary">
                     <h3>Verdict Glossary</h3>
+                    <p><strong>Phase 1 — Existence:</strong></p>
                     <ul>
-                        <li><strong>FABRICATED:</strong> Does not exist in any federal court record</li>
+                        <li><strong>FABRICATED:</strong> Citation not found in any federal court record</li>
                         <li><strong>MISATTRIBUTED:</strong> Coordinates belong to a different case</li>
-                        <li><strong>EXISTS:</strong> Citation verified</li>
-                        <li><strong>NOT FOUND:</strong> Quoted language not found in opinion</li>
-                        <li><strong>SUPPORTS:</strong> Case supports this argument</li>
-                        <li><strong>DOES_NOT_SUPPORT:</strong> Case does not support this argument</li>
-                        <li><strong>UNCERTAIN:</strong> Relationship unclear</li>
-                        <li><strong>SKIPPED:</strong> Not checked</li>
-                        <li><strong>ERROR:</strong> Verification failed</li>
+                        <li><strong>EXISTS:</strong> Citation verified against CourtListener</li>
+                        <li><strong>ERROR:</strong> CourtListener API unavailable or returned unexpected response</li>
+                    </ul>
+                    <p><strong>Phase 2 — Quote Verification:</strong></p>
+                    <ul>
+                        <li><strong>EXACT_MATCH:</strong> Quoted language found verbatim in opinion text</li>
+                        <li><strong>FUZZY_MATCH:</strong> Partial similarity match to opinion text</li>
+                        <li><strong>NOT_FOUND:</strong> Quoted language not present in opinion text</li>
+                    </ul>
+                    <p><strong>Phase 3 — Coherence (requires local LLM backend):</strong></p>
+                    <ul>
+                        <li><strong>SUPPORTS:</strong> Cited case supports the proposition as argued</li>
+                        <li><strong>DOES_NOT_SUPPORT:</strong> Cited case does not support the proposition</li>
+                        <li><strong>UNCERTAIN:</strong> Model cannot determine coherence with confidence</li>
+                        <li><strong>SKIPPED:</strong> Coherence check not performed — requires local LLM backend (Ollama). Phases 1-2 verification complete.</li>
+                        <li><strong>ERROR:</strong> LLM inference failed or returned unexpected response</li>
                     </ul>
                 </div>
             </div>
