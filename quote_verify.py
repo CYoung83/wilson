@@ -29,7 +29,7 @@ def fetch_opinion_text(cluster_id):
     Returns plain text with HTML stripped, or None on failure.
     """
     url = f"https://www.courtlistener.com/api/rest/v4/opinions/?cluster={cluster_id}&fields=id,html_with_citations"
-    resp = requests.get(url, headers=CL_HEADERS)
+    resp = requests.get(url, headers=CL_HEADERS, timeout=15)
     
     if resp.status_code != 200:
         return None

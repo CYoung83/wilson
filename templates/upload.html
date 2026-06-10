@@ -960,16 +960,26 @@
 
                 <div class="glossary">
                     <h3>Verdict Glossary</h3>
+                    <p><strong>Phase 1 — Existence:</strong></p>
                     <ul>
-                        <li><strong>FABRICATED:</strong> Does not exist in any federal court record</li>
+                        <li><strong>FABRICATED:</strong> Citation not found in any federal court record</li>
                         <li><strong>MISATTRIBUTED:</strong> Coordinates belong to a different case</li>
-                        <li><strong>EXISTS:</strong> Citation verified</li>
-                        <li><strong>NOT FOUND:</strong> Quoted language not found in opinion</li>
-                        <li><strong>SUPPORTS:</strong> Case supports this argument</li>
-                        <li><strong>DOES_NOT_SUPPORT:</strong> Case does not support this argument</li>
-                        <li><strong>UNCERTAIN:</strong> Relationship unclear</li>
-                        <li><strong>SKIPPED:</strong> Not checked</li>
-                        <li><strong>ERROR:</strong> Verification failed</li>
+                        <li><strong>EXISTS:</strong> Citation verified against CourtListener</li>
+                        <li><strong>ERROR:</strong> CourtListener API unavailable or returned unexpected response</li>
+                    </ul>
+                    <p><strong>Phase 2 — Quote Verification:</strong></p>
+                    <ul>
+                        <li><strong>EXACT_MATCH:</strong> Quoted language found verbatim in opinion text</li>
+                        <li><strong>FUZZY_MATCH:</strong> Partial similarity match to opinion text</li>
+                        <li><strong>NOT_FOUND:</strong> Quoted language not present in opinion text</li>
+                    </ul>
+                    <p><strong>Phase 3 — Coherence (requires local LLM backend):</strong></p>
+                    <ul>
+                        <li><strong>SUPPORTS:</strong> Cited case supports the proposition as argued</li>
+                        <li><strong>DOES_NOT_SUPPORT:</strong> Cited case does not support the proposition</li>
+                        <li><strong>UNCERTAIN:</strong> Model cannot determine coherence with confidence</li>
+                        <li><strong>SKIPPED:</strong> Coherence check not performed — requires local LLM backend (Ollama). Phases 1-2 verification complete.</li>
+                        <li><strong>ERROR:</strong> LLM inference failed or returned unexpected response</li>
                     </ul>
                 </div>
             </div>
@@ -1178,6 +1188,7 @@
         let citationsData = [];
         let depth = 'existence';
         let tally = { accepted: 0, rewritten: 0, skipped: 0, pending: 0 };
+        let reportMeta = {}; // filename, sha256, page_count from parse response
         let es = null;
         let timerInterval = null;
         let lastActivity = Date.now();
@@ -1217,6 +1228,7 @@
 
                 const data = await response.json();
                 citationsData = data.citations || [];
+                reportMeta = { filename: data.filename, sha256: data.sha256, page_count: data.page_count };
                 depth = document.querySelector('input[name="depth"]:checked')?.value || 'existence';
 
                 // Show success with citation count
@@ -1299,15 +1311,15 @@
 
                     row.innerHTML = `
                         <div class="citation-header">
-                            <div class="citation-text">${citation.citation_text}</div>
+                            <div class="citation-text">${escapeHtml(citation.citation_text)}</div>
                             <span class="status-badge pending" id="status-${index}">Pending</span>
                         </div>
                         <div class="context-toggle" id="toggle-${index}">View context</div>
-                        <div class="context-snippet" id="context-${index}">${citation.context_snippet}</div>
+                        <div class="context-snippet" id="context-${index}">${escapeHtml(citation.context_snippet)}</div>
                         <textarea
                             class="proposition-input"
                             id="proposition-${index}"
-                            placeholder="${citation.citation_text}"
+                            placeholder="${escapeHtml(citation.citation_text)}"
                             disabled
                         ></textarea>
                         <div class="proposition-actions">
@@ -1470,6 +1482,7 @@
 
             // Timer
             let startTime = Date.now();
+            let currentCitationIndex = 0; // tracks which citation is being processed
             timerInterval = setInterval(() => {
                 const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
                 timerDisplay.textContent = elapsed + 's';
@@ -1496,6 +1509,13 @@
                 }
             }
 
+            // Fetch batch stream — POST citations to backend SSE endpoint
+            const response = await fetch('/batch/stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ citations, depth })
+            });
+
             const reader  = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
@@ -1518,10 +1538,12 @@
 
                     if (t === 'batch_start') {
                         const total = data.total;
+                        currentCitationIndex = 0; // reset for new batch
                         progressLog.innerHTML = `<span class="log-active">Starting batch (${total} citations)</span>`;
                     }
 
                     else if (t === 'batch_progress') {
+                        currentCitationIndex = e.data.current - 1; // 0-based index
                         const current = e.data.current;
                         const total = e.data.total;
                         progressFill.style.width = `${(current / total) * 100}%`;
@@ -1544,6 +1566,11 @@
                     else if (t === 'phase1_complete') {
                         const verdict = e.data.verdict;
                         const caseName = e.data.case_name || '';
+                        // Write verdict into citationsData for summary table
+                        if (citationsData[currentCitationIndex]) {
+                            citationsData[currentCitationIndex].phase1_verdict = verdict;
+                            citationsData[currentCitationIndex].phase1_reasoning = e.data.message || '';
+                        }
                         const line = document.getElementById('phase1-line');
                         if (line) {
                             line.className = 'status-line verdict ' + verdictClass(verdict);
@@ -1562,6 +1589,12 @@
 
                     else if (t === 'phase2_complete') {
                         const verdict = e.data.display_verdict || e.data.verdict;
+                        // Write verdict into citationsData for summary table
+                        if (citationsData[currentCitationIndex]) {
+                            citationsData[currentCitationIndex].phase2_verdict = e.data.verdict || verdict;
+                            citationsData[currentCitationIndex].phase2_reasoning = e.data.reasoning || '';
+                            citationsData[currentCitationIndex].matched_passage = e.data.passage || '';
+                        }
                         const line = document.getElementById('phase2-line');
                         if (line) {
                             line.className = 'status-line verdict ' + verdictClass(verdict);
@@ -1580,6 +1613,11 @@
 
                     else if (t === 'phase3_complete') {
                         const verdict = e.data.verdict;
+                        // Write verdict into citationsData for summary table
+                        if (citationsData[currentCitationIndex]) {
+                            citationsData[currentCitationIndex].phase3_verdict = verdict;
+                            citationsData[currentCitationIndex].phase3_reasoning = e.data.reasoning || '';
+                        }
                         const line = document.getElementById('phase3-line');
                         if (line) {
                             line.className = 'status-line verdict ' + verdictClass(verdict);
@@ -1598,10 +1636,12 @@
                         progressLog.innerHTML = `<span class="log-done">Batch complete</span>`;
                         progressFill.style.width = '100%';
 
-                        setTimeout(() => {
+                        setTimeout(async () => {
                             document.getElementById('step4').style.display = 'none';
                             document.getElementById('step5').style.display = 'block';
                             renderSummary();
+                            // Generate Verification Report for download
+                            await generateReport();
                         }, 500);
                     }
 
@@ -1611,128 +1651,45 @@
                 }
             }
 
-            // Old EventSource handlers removed - using fetch POST above
+            // Dead EventSource block removed — fetch POST handles streaming now
         });
-                lastActivity = Date.now();
-                softWarning.classList.remove('visible');
-                hardWarning.classList.remove('visible');
 
-                try {
-                    const data = JSON.parse(event.data);
-                    const type = data.type;
+        async function generateReport() {
+            try {
+                const resp = await fetch('/report/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        filename: reportMeta.filename || 'unknown',
+                        sha256: reportMeta.sha256 || '',
+                        page_count: reportMeta.page_count || 0,
+                        citations: citationsData
+                    })
+                });
+                if (!resp.ok) return; // silent fail -- report is nice-to-have
+                const blob = await resp.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'wilson-report.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                // Report generation failure is non-fatal -- audit results still visible
+            }
+        }
 
-                    if (type === 'batch_start') {
-                        const total = data.total;
-                        progressLog.innerHTML = `<span class="log-active">Starting batch (${total} citations)</span>`;
-                    }
-
-                    else if (type === 'batch_progress') {
-                        const current = data.current;
-                        const total = data.total;
-                        progressFill.style.width = `${(current / total) * 100}%`;
-                        progressLog.innerHTML = `<span class="log-active">Processing citation ${current} of ${total}</span>`;
-                    }
-
-                    else if (type === 'parsed') {
-                        progressLog.innerHTML = `<span class="log-active">Citation parsed</span>`;
-                    }
-
-                    else if (type === 'phase1_start') {
-                        progressLog.innerHTML = `<span class="log-active">Phase 1: Checking whether citation exists...</span>`;
-                        const statusLine = document.createElement('div');
-                        statusLine.className = 'status-line';
-                        statusLine.id = 'phase1-line';
-                        statusLine.textContent = 'Checking whether citation exists...';
-                        statusLines.appendChild(statusLine);
-                    }
-
-                    else if (type === 'phase1_complete') {
-                        const verdict = data.data.verdict;
-                        const caseName = data.data.case_name || '';
-                        const line = document.getElementById('phase1-line');
-                        if (line) {
-                            line.className = 'status-line verdict ' + verdictClass(verdict);
-                            line.textContent = `${verdict}: ${caseName || 'Citation verified'}`;
-                        }
-                    }
-
-                    else if (type === 'phase2_start') {
-                        progressLog.innerHTML = `<span class="log-active">Phase 2: Verifying quoted language...</span>`;
-                        const statusLine = document.createElement('div');
-                        statusLine.className = 'status-line';
-                        statusLine.id = 'phase2-line';
-                        statusLine.textContent = 'Verifying quoted language...';
-                        statusLines.appendChild(statusLine);
-                    }
-
-                    else if (type === 'phase2_complete') {
-                        const verdict = data.data.display_verdict || data.data.verdict;
-                        const line = document.getElementById('phase2-line');
-                        if (line) {
-                            line.className = 'status-line verdict ' + verdictClass(verdict);
-                            line.textContent = `${verdict}: Quote verified`;
-                        }
-                    }
-
-                    else if (type === 'phase3_start') {
-                        progressLog.innerHTML = `<span class="log-active">Phase 3: Reading opinion for context...</span>`;
-                        const statusLine = document.createElement('div');
-                        statusLine.className = 'status-line';
-                        statusLine.id = 'phase3-line';
-                        statusLine.textContent = 'Reading opinion for context...';
-                        statusLines.appendChild(statusLine);
-                    }
-
-                    else if (type === 'phase3_complete') {
-                        const verdict = data.data.verdict;
-                        const line = document.getElementById('phase3-line');
-                        if (line) {
-                            line.className = 'status-line verdict ' + verdictClass(verdict);
-                            line.textContent = `${verdict}: Coherence check complete`;
-                        }
-                    }
-
-                    else if (type === 'heartbeat') {
-                        // Heartbeat handled by activity tracker
-                    }
-
-                    else if (type === 'batch_done') {
-                        clearInterval(timerInterval);
-                        clearInterval(activityCheck);
-                        progressFill.classList.remove('active');
-                        progressLog.innerHTML = `<span class="log-done">Batch complete</span>`;
-                        progressFill.style.width = '100%';
-                        eventSource.close();
-
-                        setTimeout(() => {
-                            document.getElementById('step4').style.display = 'none';
-                            document.getElementById('step5').style.display = 'block';
-                            renderSummary();
-                        }, 500);
-                    }
-
-                    else if (type === 'unparseable') {
-                        progressLog.innerHTML = `<span class="log-done">Could not parse citation</span>`;
-                    }
-
-                } catch (e) {
-                    console.error('Error parsing SSE data:', e);
-                }
-            };
-
-            eventSource.onerror = () => {
-                clearInterval(timerInterval);
-                clearInterval(activityCheck);
-                eventSource.close();
-                progressFill.classList.remove('active');
-                hardWarning.classList.add('visible');
-                setTimeout(() => {
-                    document.getElementById('step4').style.display = 'none';
-                    document.getElementById('step5').style.display = 'block';
-                    renderSummary();
-                }, 500);
-            };
-        });
+        function escapeHtml(s) {
+            if (s == null) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
 
         function verdictClass(v) {
             if (!v) return 'grey';
@@ -1749,10 +1706,10 @@
             citationsData.forEach((citation, index) => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="citation-cell">${citation.citation_text}</td>
-                    <td class="verdict-cell verdict-${verdictClass(citation.phase1_verdict || 'UNCERTAIN')}">${citation.phase1_verdict || '-'}</td>
-                    <td class="verdict-cell verdict-${verdictClass(citation.phase2_verdict || 'UNCERTAIN')}">${citation.phase2_verdict || '-'}</td>
-                    <td class="verdict-cell verdict-${verdictClass(citation.phase3_verdict || 'UNCERTAIN')}">${citation.phase3_verdict || '-'}</td>
+                    <td class="citation-cell">${escapeHtml(citation.citation_text)}</td>
+                    <td class="verdict-cell verdict-${verdictClass(citation.phase1_verdict || 'UNCERTAIN')}">${escapeHtml(citation.phase1_verdict || '-')}</td>
+                    <td class="verdict-cell verdict-${verdictClass(citation.phase2_verdict || 'UNCERTAIN')}">${escapeHtml(citation.phase2_verdict || '-')}</td>
+                    <td class="verdict-cell verdict-${verdictClass(citation.phase3_verdict || 'UNCERTAIN')}">${escapeHtml(citation.phase3_verdict || '-')}</td>
                     <td><span class="expand-toggle" data-index="${index}">Expand</span></td>
                 `;
 
@@ -1778,10 +1735,10 @@
                 detailsTr.innerHTML = `
                     <td colspan="5">
                         <div class="summary-row-details">
-                            <div class="reasoning">Phase 1: ${citation.phase1_reasoning || 'No reasoning available'}</div>
-                            <div class="reasoning">Phase 2: ${citation.phase2_reasoning || 'No reasoning available'}</div>
-                            <div class="reasoning">Phase 3: ${citation.phase3_reasoning || 'No reasoning available'}</div>
-                            <div class="passage">Matched passage: ${citation.matched_passage || 'No passage available'}</div>
+                            <div class="reasoning">Phase 1: ${escapeHtml(citation.phase1_reasoning || 'No reasoning available')}</div>
+                            <div class="reasoning">Phase 2: ${escapeHtml(citation.phase2_reasoning || 'No reasoning available')}</div>
+                            <div class="reasoning">Phase 3: ${escapeHtml(citation.phase3_reasoning || 'No reasoning available')}</div>
+                            <div class="passage">Matched passage: ${escapeHtml(citation.matched_passage || 'No passage available')}</div>
                         </div>
                     </td>
                 `;

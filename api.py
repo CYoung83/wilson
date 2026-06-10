@@ -16,10 +16,11 @@ import time
 import re
 import json
 import asyncio
+import hashlib
 import pandas as pd
 from typing import Optional, AsyncGenerator
 from datetime import datetime, timezone
-from fastapi import FastAPI, Request, UploadFile, File
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -111,7 +112,7 @@ def write_env_value(key: str, value: str) -> bool:
         found = False
         new_lines = []
         for line in lines:
-            if line.startswith(f"{key}=") or line.startswith(f"{key} ="):
+            if re.match(rf"^{re.escape(key)}\s*=", line):
                 new_lines.append(f"{key}={value}\n")
                 found = True
             else:
@@ -224,6 +225,8 @@ app = FastAPI(
 )
 
 templates = Jinja2Templates(directory="templates")
+
+WILSON_VERSION = "v0.1.1"  # matches latest signed tag
 
 
 # ------------------------------------------------------------------------------
@@ -979,6 +982,72 @@ async def batch_stream(request: BatchStreamRequest):
     )
 
 
+# ------------------------------------------------------------------------------
+# Report generation
+# ------------------------------------------------------------------------------
+
+class ReportRequest(BaseModel):
+    filename: str
+    sha256: str
+    page_count: int
+    citations: list[dict]  # each entry has citation_text, phase1_verdict, etc.
+
+
+@app.post("/report/generate")
+async def generate_report(request: Request, report_req: ReportRequest):
+    """
+    Generate a Verification Report HTML from completed batch audit data.
+
+    Returns downloadable HTML that can be printed to PDF by the browser.
+    Report structure per WILSON_PILOT_DONE.md spec:
+    - Header: Wilson version, timestamp, SHA-256, filename, citation count
+    - Body: one row per citation with phase-qualified verdicts
+    - Summary block: totals per verdict class
+    - Footer: data-boundary statement + DATUM sentence
+    """
+    # Compute summary counts per phase
+    p1_counts = {}
+    p2_counts = {}
+    p3_counts = {}
+
+    for c in report_req.citations:
+        v1 = c.get("phase1_verdict") or "UNCERTAIN"
+        p1_counts[v1] = p1_counts.get(v1, 0) + 1
+
+        v2 = c.get("phase2_verdict") or "-"
+        if v2 != "-":
+            p2_counts[v2] = p2_counts.get(v2, 0) + 1
+
+        v3 = c.get("phase3_verdict") or "SKIPPED"
+        p3_counts[v3] = p3_counts.get(v3, 0) + 1
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+    # Render template directly via Jinja2 Environment for downloadable HTML
+    tmpl = templates.env.get_template("report.html")
+    html_content = tmpl.render(
+        wilson_version=WILSON_VERSION,
+        timestamp=timestamp,
+        filename=report_req.filename,
+        sha256=report_req.sha256,
+        citation_count=len(report_req.citations),
+        page_count=report_req.page_count,
+        citations=report_req.citations,
+        p1_counts=p1_counts,
+        p2_counts=p2_counts,
+        p3_counts=p3_counts,
+    )
+
+    from fastapi.responses import Response
+    return Response(
+        content=html_content,
+        media_type="text/html",
+        headers={
+            "Content-Disposition": f"attachment; filename=wilson-report-{report_req.filename}.html"
+        }
+    )
+
+
 @app.get("/upload", response_class=HTMLResponse)
 async def upload_page(request: Request):
     """Serve the document upload form."""
@@ -997,19 +1066,22 @@ async def parse_upload_file(file: UploadFile = File(...)):
     """
     from document_parser import extract_text, extract_citations_with_context
 
-    # Check file size
+    # Check file size while streaming — reject before accumulating over-limit bytes
     file_size = 0
     chunks = []
     try:
         for chunk in file.file:
             file_size += len(chunk)
-            chunks.append(chunk)
             if file_size > MAX_UPLOAD_SIZE:
-                raise ValueError(
-                    f"File too large: {file_size / (1024 * 1024):.2f}MB exceeds 50MB limit"
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File too large: {file_size / (1024 * 1024):.2f}MB exceeds 50MB limit",
                 )
+            chunks.append(chunk)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise ValueError(f"Error reading file: {e}")
+        raise HTTPException(status_code=500, detail=f"Error reading file: {e}")
 
     file.file.seek(0)  # Reset file pointer after reading chunks
     file_bytes = b''.join(chunks)
@@ -1024,21 +1096,27 @@ async def parse_upload_file(file: UploadFile = File(...)):
             text_result["page_boundaries"]
         )
 
+        # Compute SHA-256 hash of input document (for report header)
+        file_hash = hashlib.sha256(file_bytes).hexdigest()
+
         # Build response
         response = {
             "filename": file.filename,
             "page_count": text_result["page_count"],
             "citation_count": len(citations),
             "citations": citations,
+            "sha256": file_hash,
             "chunked": True,
             "total_pages": text_result["page_count"],
         }
 
         return response
 
+    except HTTPException:
+        raise
     except ValueError as e:
-        raise ValueError(str(e))
+        raise HTTPException(status_code=422, detail=str(e))
     except RuntimeError as e:
-        raise ValueError(f"Extraction failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Extraction failed: {e}")
     except Exception as e:
-        raise ValueError(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {e}")

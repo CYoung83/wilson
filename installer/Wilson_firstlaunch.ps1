@@ -98,23 +98,51 @@ if (-not (Test-Path $csvPath)) {
     Write-Host ""
     $download = Read-Host "  Download bulk citation database now? (y/N)"
 
-    if ($download -match "^[Yy]$") {
+if ($download -match "^[Yy]$") {
         $dataDir = Join-Path $AppDir "data"
         New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
 
-        $url        = "https://com-courtlistener-storage.s3-us-west-2.amazonaws.com/bulk-data/citations-2026-03-31.csv.bz2"
-        $compressed = Join-Path $dataDir "citations-2026-03-31.csv.bz2"
-        $final      = Join-Path $dataDir "citations-2026-03-31.csv"
-
-        Write-Host "  Downloading..." -ForegroundColor DarkGray
+        # ------------------------------------------------------------------
+        # Dynamically find the latest citations CSV from CourtListener's S3 bucket
+        # ------------------------------------------------------------------
+        Write-Host "  Querying CourtListener for latest citation database..." -ForegroundColor DarkGray
         try {
-            $ProgressPreference = 'SilentlyContinue'
-            Invoke-WebRequest -Uri $url -OutFile $compressed
-            $ProgressPreference = 'Continue'
-            Write-Host "  Download complete. Decompressing (this takes a minute)..." -ForegroundColor DarkGray
+            $listUrl = "https://com-courtlistener-storage.s3-us-west-2.amazonaws.com/?prefix=bulk-data%2Fcitations-"
+            $listResp = Invoke-WebRequest -Uri $listUrl -TimeoutSec 15 -ErrorAction Stop
+            [xml]$xmlDoc = $listResp.Content
 
-            $decompScript = Join-Path $env:TEMP "wilson_decompress.py"
-            Set-Content $decompScript @"
+            $candidates = @()
+            foreach ($item in $xmlDoc.ListBucketResult.Contents) {
+                $key = $item.Key
+                if ($key -match "bulk-data/citations-(\d{4}-\d{2}-\d{2})\.csv\.bz2$") {
+                    $dateStr = $Matches[1]
+                    $candidates += [PSCustomObject]@{
+                        Date = $dateStr
+                        Key  = $key
+                        Url  = "https://com-courtlistener-storage.s3-us-west-2.amazonaws.com/$key"
+                    }
+                }
+            }
+
+            if ($candidates.Count -eq 0) {
+                Write-Host "  No citations CSV found in bucket -- you can retry by relaunching Wilson." -ForegroundColor Red
+            } else {
+                $latest = $candidates | Sort-Object Date -Descending | Select-Object -First 1
+                $url = $latest.Url
+                $fileName = [System.IO.Path]::GetFileName($latest.Key)
+                $compressed = Join-Path $dataDir $fileName
+                $baseName = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
+                $final = Join-Path $dataDir "$baseName.csv"
+
+                Write-Host "  Found: $fileName" -ForegroundColor DarkGray
+                Write-Host "  Downloading..." -ForegroundColor DarkGray
+                $ProgressPreference = 'SilentlyContinue'
+                Invoke-WebRequest -Uri $url -OutFile $compressed
+                $ProgressPreference = 'Continue'
+                Write-Host "  Download complete. Decompressing (this takes a minute)..." -ForegroundColor DarkGray
+
+                $decompScript = Join-Path $env:TEMP "wilson_decompress.py"
+                Set-Content $decompScript @"
 import bz2, os, sys
 src, dst = sys.argv[1], sys.argv[2]
 with bz2.open(src, 'rb') as fin, open(dst, 'wb') as fout:
@@ -125,18 +153,19 @@ with bz2.open(src, 'rb') as fin, open(dst, 'wb') as fout:
         fout.write(chunk)
 os.remove(src)
 "@ -Encoding UTF8
-            & $python $decompScript $compressed $final
-            Remove-Item $decompScript -Force -ErrorAction SilentlyContinue
+                & $python $decompScript $compressed $final
+                Remove-Item $decompScript -Force -ErrorAction SilentlyContinue
 
-            if (Test-Path $final) {
-                Set-EnvValue "CITATIONS_CSV" $final
-                Write-Host "  Bulk database ready." -ForegroundColor Green
-                $configChanged = $true
-            } else {
-                Write-Host "  Decompression failed -- you can retry by relaunching Wilson." -ForegroundColor Red
+                if (Test-Path $final) {
+                    Set-EnvValue "CITATIONS_CSV" $final
+                    Write-Host "  Bulk database ready." -ForegroundColor Green
+                    $configChanged = $true
+                } else {
+                    Write-Host "  Decompression failed -- you can retry by relaunching Wilson." -ForegroundColor Red
+                }
             }
         } catch {
-            Write-Host "  Download failed: $_" -ForegroundColor Red
+            Write-Host "  Failed to query/download: $_" -ForegroundColor Red
             Write-Host "  You can retry by relaunching Wilson." -ForegroundColor DarkGray
         }
     } else {

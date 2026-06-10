@@ -635,8 +635,18 @@
         return 'v-grey';
     }
 
+    function escapeHtml(s) {
+        if (s == null) return '';
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function detail(k, v, mono) {
-        return `<div class="dk">${k}</div><div class="dv${mono?' mono':''}">${v}</div>`;
+        return `<div class="dk">${k}</div><div class="dv${mono?' mono':''}">${escapeHtml(v)}</div>`;
     }
 
     function renderPhase1(d) {
@@ -644,7 +654,7 @@
         let h = `<div class="phase-block">
             <div class="phase-header">
                 <span class="phase-label">Phase 1 -- Existence</span>
-                <span class="verdict ${vc}">${d.verdict}</span>
+                <span class="verdict ${vc}">${escapeHtml(d.verdict)}</span>
             </div>
             <div class="detail-grid">`;
         if (d.case_name) h += detail('Actual case', d.case_name);
@@ -657,7 +667,7 @@
         if (d.cluster_id) h += detail('Cluster ID', d.cluster_id, true);
         if (d.local_csv)  h += detail('Local CSV', d.local_csv);
         h += `</div>`;
-        if (d.message) h += `<div class="reasoning">${d.message}</div>`;
+        if (d.message) h += `<div class="reasoning">${escapeHtml(d.message)}</div>`;
         if (d.privacy_protected) {
             h += `<div class="reasoning" style="border-left-color: #4a3a1a; color: #ff9800;">
                 This opinion has been flagged for privacy protection.
@@ -674,11 +684,11 @@
         let h = `<div class="phase-block">
             <div class="phase-header">
                 <span class="phase-label">Phase 2 -- Quote Verification</span>
-                <span class="verdict ${vc}">${dv}</span>
+                <span class="verdict ${vc}">${escapeHtml(dv)}</span>
                 ${d.score_pct != null ? `<span class="confidence-tag">Score: ${d.score_pct}%</span>` : ''}
             </div>`;
-        if (d.reasoning) h += `<div class="reasoning">${d.reasoning}</div>`;
-        if (d.passage)   h += `<div class="passage">${d.passage}</div>`;
+        if (d.reasoning) h += `<div class="reasoning">${escapeHtml(d.reasoning)}</div>`;
+        if (d.passage)   h += `<div class="passage">${escapeHtml(d.passage)}</div>`;
         h += `</div>`;
         return h;
     }
@@ -691,11 +701,11 @@
         let h = `<div class="phase-block">
             <div class="phase-header">
                 <span class="phase-label">Phase 3 -- Coherence</span>
-                <span class="verdict ${vc}">${d.verdict}</span>
-                ${d.confidence ? `<span class="confidence-tag">${d.confidence} confidence</span>` : ''}
-                ${backendLabel ? `<span class="confidence-tag">${backendLabel}</span>` : ''}
+                <span class="verdict ${vc}">${escapeHtml(d.verdict)}</span>
+                ${d.confidence ? `<span class="confidence-tag">${escapeHtml(d.confidence)} confidence</span>` : ''}
+                ${backendLabel ? `<span class="confidence-tag">${escapeHtml(backendLabel)}</span>` : ''}
             </div>`;
-        if (d.reasoning) h += `<div class="reasoning">${d.reasoning}</div>`;
+        if (d.reasoning) h += `<div class="reasoning">${escapeHtml(d.reasoning)}</div>`;
         h += `</div>`;
         return h;
     }
@@ -820,25 +830,27 @@
                     else if (t === 'unparseable') {
                         addLog('Could not parse', 'done');
                         setProgress(100, false);
-                        results.innerHTML += `<div class="error-block">${e.message}</div>`;
+                        results.innerHTML += `<div class="error-block">${escapeHtml(e.message)}</div>`;
                         scrollToResults();
                     }
 
                     else if (t === 'suggestion') {
                         setProgress(100, false);
                         stopTimer(e.duration);
+                        const safeJsonCit = escapeHtml(JSON.stringify(e.data.suggested_citation));
+                        const safeDisplayCit = escapeHtml(e.data.suggested_citation);
                         results.innerHTML += `<div class="phase-block" style="border-color: #4a3a1a;">
                             <div class="phase-header">
                                 <span class="phase-label">Name Lookup -- Low Confidence</span>
                                 <span class="verdict v-orange">DID YOU MEAN?</span>
                             </div>
                             <div class="reasoning">
-                                ${e.data.message}
+                                ${escapeHtml(e.data.message)}
                             </div>
                             <div style="margin-top: 0.75rem; display: flex; gap: 0.5rem;">
-                                <button onclick="document.getElementById('citation').value = '${e.data.suggested_citation}'; resetForm(); document.getElementById('citation').value = '${e.data.suggested_citation}';"
+                                <button onclick="document.getElementById('citation').value = ${safeJsonCit}; resetForm(); document.getElementById('citation').value = ${safeJsonCit};"
                                     style="flex: 1; padding: 0.5rem; background: #0d2a0d; border: 1px solid #1a4a1a; border-radius: 4px; color: #4caf50; cursor: pointer; font-family: inherit; font-size: 0.82rem;">
-                                    Use "${e.data.suggested_citation}"
+                                    Use "${safeDisplayCit}"
                                 </button>
                                 <button onclick="resetForm();"
                                     style="flex: 0 0 auto; padding: 0.5rem 1rem; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; font-family: inherit; font-size: 0.82rem;">
@@ -846,7 +858,7 @@
                                 </button>
                             </div>
                         </div>`;
-                        document.getElementById('results-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
 
                     else if (t === 'done') {
