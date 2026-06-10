@@ -1023,27 +1023,24 @@ async def generate_report(request: Request, report_req: ReportRequest):
 
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
-    html_content = templates.TemplateResponse(
-        request=request,
-        name="report.html",
-        context={
-            "wilson_version": WILSON_VERSION,
-            "timestamp": timestamp,
-            "filename": report_req.filename,
-            "sha256": report_req.sha256,
-            "citation_count": len(report_req.citations),
-            "page_count": report_req.page_count,
-            "citations": report_req.citations,
-            "p1_counts": p1_counts,
-            "p2_counts": p2_counts,
-            "p3_counts": p3_counts,
-        },
+    # Render template directly via Jinja2 Environment for downloadable HTML
+    tmpl = templates.env.get_template("report.html")
+    html_content = tmpl.render(
+        wilson_version=WILSON_VERSION,
+        timestamp=timestamp,
+        filename=report_req.filename,
+        sha256=report_req.sha256,
+        citation_count=len(report_req.citations),
+        page_count=report_req.page_count,
+        citations=report_req.citations,
+        p1_counts=p1_counts,
+        p2_counts=p2_counts,
+        p3_counts=p3_counts,
     )
 
-    # Return as downloadable HTML string
     from fastapi.responses import Response
     return Response(
-        content=html_content.body.decode("utf-8") if hasattr(html_content, 'body') else str(html_content),
+        content=html_content,
         media_type="text/html",
         headers={
             "Content-Disposition": f"attachment; filename=wilson-report-{report_req.filename}.html"
