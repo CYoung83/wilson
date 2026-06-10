@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Wilson Verification Report</title>
+    <style>
+        /* Print-ready report — clean, professional, no dependencies */
+        @page { margin: 1.5cm; size: letter; }
+        body { font-family: "Segoe UI", Arial, sans-serif; font-size: 10pt; color: #1a1a1a; line-height: 1.4; max-width: 800px; margin: 0 auto; padding: 2rem; }
+
+        /* Header */
+        .report-header { border-bottom: 2px solid #333; padding-bottom: 1rem; margin-bottom: 1.5rem; }
+        .report-title { font-size: 18pt; font-weight: bold; margin: 0 0 0.25rem 0; }
+        .report-subtitle { color: #666; font-size: 9pt; margin: 0; }
+        .meta-grid { display: grid; grid-template-columns: auto 1fr; gap: 0.2rem 1rem; margin-top: 0.75rem; font-size: 9pt; }
+        .meta-key { font-weight: bold; color: #444; }
+
+        /* Body table */
+        table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; font-size: 8.5pt; }
+        th { background: #f5f5f5; text-align: left; padding: 0.4rem 0.3rem; border-bottom: 2px solid #ccc; font-weight: bold; white-space: nowrap; }
+        td { padding: 0.35rem 0.3rem; border-bottom: 1px solid #e8e8e8; vertical-align: top; }
+        .citation-text { font-family: "Consolas", monospace; font-size: 8pt; word-break: break-word; max-width: 260px; }
+
+        /* Verdict badges */
+        .v-green { color: #1b5e20; background: #c8e6c9; padding: 0.1rem 0.4rem; border-radius: 3px; font-weight: bold; white-space: nowrap; display: inline-block; }
+        .v-red { color: #b71c1c; background: #ffcdd2; padding: 0.1rem 0.4rem; border-radius: 3px; font-weight: bold; white-space: nowrap; display: inline-block; }
+        .v-orange { color: #e65100; background: #ffe0b2; padding: 0.1rem 0.4rem; border-radius: 3px; font-weight: bold; white-space: nowrap; display: inline-block; }
+        .v-grey { color: #616161; background: #eeeeee; padding: 0.1rem 0.4rem; border-radius: 3px; font-weight: bold; white-space: nowrap; display: inline-block; }
+
+        /* Reasoning column */
+        .reasoning { color: #555; font-size: 8pt; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Summary block */
+        .summary-section { margin-bottom: 1.5rem; }
+        .summary-title { font-size: 11pt; font-weight: bold; margin-bottom: 0.5rem; border-bottom: 1px solid #ddd; padding-bottom: 0.25rem; }
+        .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .phase-box { font-size: 8pt; }
+        .phase-box h4 { margin: 0 0 0.3rem 0; font-size: 9pt; color: #333; }
+        .count-row { display: flex; justify-content: space-between; padding: 0.15rem 0; border-bottom: 1px dotted #eee; }
+
+        /* Footer */
+        .report-footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #ccc; font-size: 7.5pt; color: #666; line-height: 1.5; }
+        .datum-sentence { font-style: italic; margin-top: 0.5rem; font-weight: bold; color: #444; }
+
+        /* Print adjustments */
+        @media print { body { padding: 0; max-width: none; } table { page-break-inside: auto; } tr { page-break-inside: avoid; } }
+    </style>
+</head>
+<body>
+
+<div class="report-header">
+    <h1 class="report-title">Wilson Verification Report</h1>
+    <p class="report-subtitle">AI Legal Citation Auditor &mdash; Open Source (Apache 2.0)</p>
+    <div class="meta-grid">
+        <span class="meta-key">Version:</span><span>{{ wilson_version }}</span>
+        <span class="meta-key">Timestamp:</span><span>{{ timestamp }}</span>
+        <span class="meta-key">Document:</span><span>{{ filename }}</span>
+        <span class="meta-key">Pages:</span><span>{{ page_count }}</span>
+        <span class="meta-key">Citations found:</span><span>{{ citation_count }}</span>
+        <span class="meta-key">SHA-256:</span><span style="font-family: Consolas, monospace; font-size: 7.5pt;">{{ sha256 }}</span>
+    </div>
+</div>
+
+<!-- Per-citation body -->
+<table>
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Citation</th>
+            <th>Phase 1<br><small>Existence</small></th>
+            <th>Phase 2<br><small>Quote Verify</small></th>
+            <th>Phase 3<br><small>Coherence</small></th>
+            <th>Detail</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for c in citations %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td class="citation-text">{{ c.citation_text | default('', true) }}</td>
+            <td>
+                {% set v1 = c.phase1_verdict or 'UNCERTAIN' %}
+                {% if v1 in ['EXISTS'] %}<span class="v-green">{{ v1 }}</span>
+                {% elif v1 in ['FABRICATED', 'MISATTRIBUTED'] %}<span class="v-red">{{ v1 }}</span>
+                {% elif v1 == 'ERROR' %}<span class="v-orange">P1 ERROR</span>
+                {% else %}<span class="v-grey">{{ v1 }}</span>{% endif %}
+            </td>
+            <td>
+                {% set v2 = c.phase2_verdict or '-' %}
+                {% if v2 != '-' %}
+                    {% if 'MATCH' in v2 %}<span class="v-green">{{ v2 }}</span>
+                    {% elif v2 == 'NOT_FOUND' %}<span class="v-red">{{ v2 }}</span>
+                    {% else %}<span class="v-grey">{{ v2 }}</span>{% endif %}
+                {% else %}&mdash;{% endif %}
+            </td>
+            <td>
+                {% set v3 = c.phase3_verdict or 'SKIPPED' %}
+                {% if v3 == 'SUPPORTS' %}<span class="v-green">{{ v3 }}</span>
+                {% elif v3 in ['DOES_NOT_SUPPORT'] %}<span class="v-red">{{ v3 }}</span>
+                {% elif v3 == 'UNCERTAIN' %}<span class="v-orange">{{ v3 }}</span>
+                {% elif v3 == 'SKIPPED' %}<span class="v-grey">SKIPPED</span>
+                {% elif v3 == 'ERROR' %}<span class="v-orange">P3 ERROR</span>
+                {% else %}<span class="v-grey">{{ v3 }}</span>{% endif %}
+            </td>
+            <td class="reasoning" title="{{ c.phase1_reasoning or '' }}">
+                {{ c.phase1_reasoning | default('', true) }}{% if c.matched_passage %} &mdash; "{{ c.matched_passage[:80] }}"{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Summary block -->
+<div class="summary-section">
+    <div class="summary-title">Summary by Verdict Class</div>
+    <div class="summary-grid">
+        <div class="phase-box">
+            <h4>Phase 1 &mdash; Existence</h4>
+            {% for verdict, count in p1_counts.items() %}
+            <div class="count-row"><span>{{ verdict }}</span><strong>{{ count }}</strong></div>
+            {% endfor %}
+        </div>
+        <div class="phase-box">
+            <h4>Phase 2 &mdash; Quote Verification</h4>
+            {% if p2_counts %}
+                {% for verdict, count in p2_counts.items() %}
+                <div class="count-row"><span>{{ verdict }}</span><strong>{{ count }}</strong></div>
+                {% endfor %}
+            {% else %}
+                <div style="color:#999; font-style:italic;">Not run (depth = existence only)</div>
+            {% endif %}
+        </div>
+        <div class="phase-box">
+            <h4>Phase 3 &mdash; Coherence</h4>
+            {% for verdict, count in p3_counts.items() %}
+            <div class="count-row"><span>{{ verdict }}</span><strong>{{ count }}</strong></div>
+            {% endfor %}
+            {% if 'SKIPPED' in p3_counts and p3_counts['SKIPPED'] == citation_count %}
+                <div style="color:#999; font-style:italic; margin-top:0.25rem;">Coherence check not performed &mdash; requires local LLM backend (Ollama). Phases 1-2 verification complete.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+<div class="report-footer">
+    <strong>Data Boundary:</strong> Only citation strings were sent to the CourtListener API for existence verification. Document content never left this machine. No client information was transmitted externally.
+    <p class="datum-sentence">Wilson is the first deployed component of the DATUM verification standard.</p>
+</div>
+
+</body>
+</html>

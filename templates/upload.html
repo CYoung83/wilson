@@ -1188,6 +1188,7 @@
         let citationsData = [];
         let depth = 'existence';
         let tally = { accepted: 0, rewritten: 0, skipped: 0, pending: 0 };
+        let reportMeta = {}; // filename, sha256, page_count from parse response
         let es = null;
         let timerInterval = null;
         let lastActivity = Date.now();
@@ -1227,6 +1228,7 @@
 
                 const data = await response.json();
                 citationsData = data.citations || [];
+                reportMeta = { filename: data.filename, sha256: data.sha256, page_count: data.page_count };
                 depth = document.querySelector('input[name="depth"]:checked')?.value || 'existence';
 
                 // Show success with citation count
@@ -1634,10 +1636,12 @@
                         progressLog.innerHTML = `<span class="log-done">Batch complete</span>`;
                         progressFill.style.width = '100%';
 
-                        setTimeout(() => {
+                        setTimeout(async () => {
                             document.getElementById('step4').style.display = 'none';
                             document.getElementById('step5').style.display = 'block';
                             renderSummary();
+                            // Generate Verification Report for download
+                            await generateReport();
                         }, 500);
                     }
 
@@ -1649,6 +1653,33 @@
 
             // Dead EventSource block removed — fetch POST handles streaming now
         });
+
+        async function generateReport() {
+            try {
+                const resp = await fetch('/report/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        filename: reportMeta.filename || 'unknown',
+                        sha256: reportMeta.sha256 || '',
+                        page_count: reportMeta.page_count || 0,
+                        citations: citationsData
+                    })
+                });
+                if (!resp.ok) return; // silent fail -- report is nice-to-have
+                const blob = await resp.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'wilson-report.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                // Report generation failure is non-fatal -- audit results still visible
+            }
+        }
 
         function escapeHtml(s) {
             if (s == null) return '';
