@@ -1470,6 +1470,7 @@
 
             // Timer
             let startTime = Date.now();
+            let currentCitationIndex = 0; // tracks which citation is being processed
             timerInterval = setInterval(() => {
                 const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
                 timerDisplay.textContent = elapsed + 's';
@@ -1525,10 +1526,12 @@
 
                     if (t === 'batch_start') {
                         const total = data.total;
+                        currentCitationIndex = 0; // reset for new batch
                         progressLog.innerHTML = `<span class="log-active">Starting batch (${total} citations)</span>`;
                     }
 
                     else if (t === 'batch_progress') {
+                        currentCitationIndex = e.data.current - 1; // 0-based index
                         const current = e.data.current;
                         const total = e.data.total;
                         progressFill.style.width = `${(current / total) * 100}%`;
@@ -1551,6 +1554,11 @@
                     else if (t === 'phase1_complete') {
                         const verdict = e.data.verdict;
                         const caseName = e.data.case_name || '';
+                        // Write verdict into citationsData for summary table
+                        if (citationsData[currentCitationIndex]) {
+                            citationsData[currentCitationIndex].phase1_verdict = verdict;
+                            citationsData[currentCitationIndex].phase1_reasoning = e.data.message || '';
+                        }
                         const line = document.getElementById('phase1-line');
                         if (line) {
                             line.className = 'status-line verdict ' + verdictClass(verdict);
@@ -1569,6 +1577,12 @@
 
                     else if (t === 'phase2_complete') {
                         const verdict = e.data.display_verdict || e.data.verdict;
+                        // Write verdict into citationsData for summary table
+                        if (citationsData[currentCitationIndex]) {
+                            citationsData[currentCitationIndex].phase2_verdict = e.data.verdict || verdict;
+                            citationsData[currentCitationIndex].phase2_reasoning = e.data.reasoning || '';
+                            citationsData[currentCitationIndex].matched_passage = e.data.passage || '';
+                        }
                         const line = document.getElementById('phase2-line');
                         if (line) {
                             line.className = 'status-line verdict ' + verdictClass(verdict);
@@ -1587,6 +1601,11 @@
 
                     else if (t === 'phase3_complete') {
                         const verdict = e.data.verdict;
+                        // Write verdict into citationsData for summary table
+                        if (citationsData[currentCitationIndex]) {
+                            citationsData[currentCitationIndex].phase3_verdict = verdict;
+                            citationsData[currentCitationIndex].phase3_reasoning = e.data.reasoning || '';
+                        }
                         const line = document.getElementById('phase3-line');
                         if (line) {
                             line.className = 'status-line verdict ' + verdictClass(verdict);
