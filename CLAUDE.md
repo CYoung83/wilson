@@ -1,114 +1,95 @@
-# Wilson Project -- Local Execution Agent Instructions
+# CLAUDE.md
 
-## Your Role
+This file provides guidance to Claude Code when working in this repository.
+Do not search for this file. You are already reading it.
 
-You are a **code execution agent**. Your job is to implement tasks that have
-already been fully designed and approved by a senior architect. You do not
-design, plan, brainstorm, or make architectural decisions. You execute.
+# Project: Wilson
 
-Every task you receive has already been:
-- Designed (design spec exists in docs/superpowers/specs/)
-- Planned (implementation plan exists in docs/superpowers/plans/)
-- Approved by the project architect
-
-Your only job is to write the code, run the tests, and commit.
+Open-source AI legal citation auditor. Apache 2.0. github.com/CYoung83/wilson
+Atomic function: Wilson removes the advantage afforded to those who will lie.
 
 ---
 
-## Behavior Rules -- Non-Negotiable
+## Session Start Protocol
 
-**DO:**
-- Read only the files you need for the current task
-- Write code exactly as specified
-- Run tests after every implementation step
-- Commit after every task with the exact commit message given
-- Report what you did and the test results
-
-**DO NOT:**
-- Load brainstorming, writing-plans, or design skills
-- Write plan documents or design specs
-- Make architectural decisions -- if something is unclear, ask one question
-- Search the entire venv/ directory -- it contains thousands of files
-- Modify functions marked as complete in the task prompt
-- Commit directly to main -- always verify you are on a feature branch first
-- Use sse_starlette -- raw StreamingResponse with asyncio.sleep(0) only
-- Use Unicode characters in print() calls -- use -- instead of em-dash
-
-**IF YOU GET STUCK:**
-- Do not loop more than 3 attempts on a failing test
-- Report the failure and stop
-- Do not try creative alternatives without instruction
+1. Read WILSON_PILOT_DONE.md completely. It governs all work. Anything not In Scope goes to Linear tagged post-pilot.
+2. Read WILSON_PROJECT_HANDOFF.md for current state and verified facts.
+3. State which In Scope item the requested task serves before starting it. No item, no task.
+4. Stop and confirm understanding before making any change.
 
 ---
 
-## Project: Wilson
+## File Safety Policy (mandatory, no exceptions)
 
-Wilson is an open-source AI reasoning auditor for legal citations.
-Apache 2.0. Repo: https://github.com/CYoung83/wilson
-
-### Key files
-- `api.py` -- FastAPI app, all endpoints
-- `coherence_check.py` -- Phase 3 Ollama + embeddings fallback
-- `document_parser.py` -- text extraction, citation extraction, proposition suggestion
-- `quote_verify.py` -- Phase 2 fuzzy matching
-- `templates/index.html` -- single-citation web UI
-- `WILSON_V010_CONTEXT.md` -- full project context and architectural decisions
-
-### Critical technical constraints
-- SSE streaming: raw `StreamingResponse` + `asyncio.sleep(0)` after each yield.
-  NEVER use sse_starlette -- it buffers on Windows browsers.
-- No Unicode in print() -- Windows cp1252 raises UnicodeEncodeError on em-dash etc.
-  Use -- instead of em-dash, -> instead of arrow.
-- BeautifulSoup: always use "lxml" parser, never "html.parser"
-- In-memory CSV: loaded once via get_citations_df() global -- never reload
-- Every function needs a docstring
-- Fail loudly with clear error messages
-- Degrade gracefully -- partial results better than no results
-- No hardcoded paths -- everything configurable via .env
-
-### Branch check before every commit
-```powershell
-git branch
-```
-If you are on main, STOP. Do not commit. Ask for instruction.
-
-### Running tests
-```powershell
-.\venv\Scripts\python.exe -m pytest tests/ -v
-```
-
-### Test citations for manual verification
-- EXISTS: Miranda v. Arizona, 384 U.S. 436 (1966)
-- EXISTS: Daubert v. Merrell Dow Pharmaceuticals, Inc., 509 U.S. 579 (1993)
-- FABRICATED: Varghese v. China Southern Airlines Co., Ltd., 925 F.3d 1339 (11th Cir. 2019)
+- NEVER delete files. Move to I:\trash instead.
+- Before modifying any file: copy every file to be modified to I:\save_states\YYYYMMDD_HHMMSS\<relative_path>. One timestamp per session.
+- After changes and tests pass: write I:\save_states\YYYYMMDD_HHMMSS\CHANGES.md.
+- Never commit to main. Check branch before every commit: git branch --show-current
+- Do not rewrite working code. If it passes its test, leave it alone.
 
 ---
 
-## Session Workflow
+## Off-Limits Paths — NEVER modify
+- venv/ (any file)
+- .git/ (beyond normal commits; never rewrite history, never touch tags)
+- dist/ and any built installer artifact
+- tests that currently pass
+- requirements.txt without explicit user approval
 
-1. Read the task prompt
-2. Read only the specific files needed
-3. Write failing tests first if specified
-4. Implement the code
-5. Run tests -- verify they pass
-6. Check branch -- verify not on main
-7. Commit with exact message given
-8. Report: what was done, test results, commit hash, stop
+## Pre-Task Protocol
+- Before modifying any file: restate the task in one sentence and list anything uncertain. Wait for confirmation if uncertainties exist.
+- Any task touching 3 or more files: present the file list and plan first. No changes until approved.
+
+## Error Handling
+- No bare except. Catch specific exceptions with meaningful handling.
+- Any error path a user can reach must produce a plain-language message, never a traceback.
 
 ---
 
-## Scope Boundary
+## Environment
 
-The architect (Claude Sonnet, cloud-based) handles:
-- Architecture and design decisions
-- Feature specifications and prioritization
-- Cross-feature integration
-- Any decision not explicitly in the task prompt
+- Project root: C:\wilson\v0.1.0
+- Python: C:\wilson\v0.1.0\venv\Scripts\python.exe (Python 3.13). Never bare python or python3.
+- Use PowerShell for all Windows path operations. Bash mangles backslash paths.
+- ASCII only in all console output: [OK], [FAIL], [ERROR], [SKIP], [WARN]. No Unicode, no emoji.
+- Executor model: Qwen3.6-27b via LM Studio (http://100.66.110.110:1234). Secondary: Qwen3.5-9b on 100.109.47.18.
 
-You handle:
-- Writing the code as specified
-- Running the tests
-- Committing clean work
-- Reporting results
+---
 
-When in doubt: implement exactly what was asked. Nothing more. Stop and report.
+## Execution Discipline
+
+- One file, one task. Complete and test before moving to the next.
+- Write complete files. No partial writes.
+- Never use python -c for multi-step work. Write a .py file and run it.
+- Stop after 3 consecutive failed attempts on any single task. Report and wait.
+- If a file edit fails twice on the same file, rewrite the whole file in one operation.
+- Report blockers immediately. Do not work around them silently.
+- Do not start implementing anything without reporting findings first.
+- Never state a test count from memory. Run pytest fresh, then report the actual output.
+
+---
+
+## Testing Protocol
+
+- Run the full suite with: venv\Scripts\python.exe -m pytest
+- Test before committing. Pass = commit. Fail = fix first.
+- Do not delete or modify passing tests.
+- Last recorded baseline: 36/36 at v0.1.0. Verify fresh; do not trust this number.
+
+---
+
+## Verification Pipeline (orientation)
+
+1. eyecite — deterministic citation extraction
+2. CourtListener API — existence verification (rate limit: 60 citations/minute — respect it in batch code)
+3. Charlotin hallucination database — dynamic CSV via S3 poll (v0.1.1)
+
+Data boundary rule: citation strings only may be sent to CourtListener. Document content never leaves the machine. Any code change that would violate this is out of scope by definition.
+
+---
+
+## Current Sprint (pilot preparation)
+
+Definition of done: a litigation attorney with no technical skill installs Wilson from the signed installer, drops in a brief, and receives a Verification Report PDF without a crash.
+
+Out of scope, no exceptions: ANCHOR, LEXIS, Nautilus mounting, DATUM crystallization, new features, refactoring passing code, DMS integrations, multi-user. Full list in WILSON_PILOT_DONE.md.

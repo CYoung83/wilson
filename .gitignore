@@ -8,3 +8,7 @@ __pycache__/
 
 installer/*.exe
 installer/python-*.zip
+
+# IDE state
+.idea/
+.serena/

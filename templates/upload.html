@@ -1299,15 +1299,15 @@
 
                     row.innerHTML = `
                         <div class="citation-header">
-                            <div class="citation-text">${citation.citation_text}</div>
+                            <div class="citation-text">${escapeHtml(citation.citation_text)}</div>
                             <span class="status-badge pending" id="status-${index}">Pending</span>
                         </div>
                         <div class="context-toggle" id="toggle-${index}">View context</div>
-                        <div class="context-snippet" id="context-${index}">${citation.context_snippet}</div>
+                        <div class="context-snippet" id="context-${index}">${escapeHtml(citation.context_snippet)}</div>
                         <textarea
                             class="proposition-input"
                             id="proposition-${index}"
-                            placeholder="${citation.citation_text}"
+                            placeholder="${escapeHtml(citation.citation_text)}"
                             disabled
                         ></textarea>
                         <div class="proposition-actions">
@@ -1734,6 +1734,16 @@
             };
         });
 
+        function escapeHtml(s) {
+            if (s == null) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function verdictClass(v) {
             if (!v) return 'grey';
             if (['EXISTS', 'SUPPORTS'].includes(v) || v.includes('MATCH')) return 'green';
@@ -1749,10 +1759,10 @@
             citationsData.forEach((citation, index) => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="citation-cell">${citation.citation_text}</td>
-                    <td class="verdict-cell verdict-${verdictClass(citation.phase1_verdict || 'UNCERTAIN')}">${citation.phase1_verdict || '-'}</td>
-                    <td class="verdict-cell verdict-${verdictClass(citation.phase2_verdict || 'UNCERTAIN')}">${citation.phase2_verdict || '-'}</td>
-                    <td class="verdict-cell verdict-${verdictClass(citation.phase3_verdict || 'UNCERTAIN')}">${citation.phase3_verdict || '-'}</td>
+                    <td class="citation-cell">${escapeHtml(citation.citation_text)}</td>
+                    <td class="verdict-cell verdict-${verdictClass(citation.phase1_verdict || 'UNCERTAIN')}">${escapeHtml(citation.phase1_verdict || '-')}</td>
+                    <td class="verdict-cell verdict-${verdictClass(citation.phase2_verdict || 'UNCERTAIN')}">${escapeHtml(citation.phase2_verdict || '-')}</td>
+                    <td class="verdict-cell verdict-${verdictClass(citation.phase3_verdict || 'UNCERTAIN')}">${escapeHtml(citation.phase3_verdict || '-')}</td>
                     <td><span class="expand-toggle" data-index="${index}">Expand</span></td>
                 `;
 
@@ -1778,10 +1788,10 @@
                 detailsTr.innerHTML = `
                     <td colspan="5">
                         <div class="summary-row-details">
-                            <div class="reasoning">Phase 1: ${citation.phase1_reasoning || 'No reasoning available'}</div>
-                            <div class="reasoning">Phase 2: ${citation.phase2_reasoning || 'No reasoning available'}</div>
-                            <div class="reasoning">Phase 3: ${citation.phase3_reasoning || 'No reasoning available'}</div>
-                            <div class="passage">Matched passage: ${citation.matched_passage || 'No passage available'}</div>
+                            <div class="reasoning">Phase 1: ${escapeHtml(citation.phase1_reasoning || 'No reasoning available')}</div>
+                            <div class="reasoning">Phase 2: ${escapeHtml(citation.phase2_reasoning || 'No reasoning available')}</div>
+                            <div class="reasoning">Phase 3: ${escapeHtml(citation.phase3_reasoning || 'No reasoning available')}</div>
+                            <div class="passage">Matched passage: ${escapeHtml(citation.matched_passage || 'No passage available')}</div>
                         </div>
                     </td>
                 `;

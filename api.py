@@ -19,7 +19,7 @@ import asyncio
 import pandas as pd
 from typing import Optional, AsyncGenerator
 from datetime import datetime, timezone
-from fastapi import FastAPI, Request, UploadFile, File
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -111,7 +111,7 @@ def write_env_value(key: str, value: str) -> bool:
         found = False
         new_lines = []
         for line in lines:
-            if line.startswith(f"{key}=") or line.startswith(f"{key} ="):
+            if re.match(rf"^{re.escape(key)}\s*=", line):
                 new_lines.append(f"{key}={value}\n")
                 found = True
             else:
@@ -997,19 +997,22 @@ async def parse_upload_file(file: UploadFile = File(...)):
     """
     from document_parser import extract_text, extract_citations_with_context
 
-    # Check file size
+    # Check file size while streaming — reject before accumulating over-limit bytes
     file_size = 0
     chunks = []
     try:
         for chunk in file.file:
             file_size += len(chunk)
-            chunks.append(chunk)
             if file_size > MAX_UPLOAD_SIZE:
-                raise ValueError(
-                    f"File too large: {file_size / (1024 * 1024):.2f}MB exceeds 50MB limit"
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File too large: {file_size / (1024 * 1024):.2f}MB exceeds 50MB limit",
                 )
+            chunks.append(chunk)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise ValueError(f"Error reading file: {e}")
+        raise HTTPException(status_code=500, detail=f"Error reading file: {e}")
 
     file.file.seek(0)  # Reset file pointer after reading chunks
     file_bytes = b''.join(chunks)
@@ -1036,9 +1039,11 @@ async def parse_upload_file(file: UploadFile = File(...)):
 
         return response
 
+    except HTTPException:
+        raise
     except ValueError as e:
-        raise ValueError(str(e))
+        raise HTTPException(status_code=422, detail=str(e))
     except RuntimeError as e:
-        raise ValueError(f"Extraction failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Extraction failed: {e}")
     except Exception as e:
-        raise ValueError(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {e}")
